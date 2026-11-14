@@ -49,7 +49,7 @@ cmake --build build
 ##  Авторы
 
 * **[overlord_zpyxkhtnvorplimbex](https://codeberg.org/overlord_zpyxkhtnvorplimbex)** - создатель оригинального проекта и концепции парсера расписания ([cliLessonShowerForBSTU](https://codeberg.org/overlord_zpyxkhtnvorplimbex/cliLessonShowerForBSTU)), который лёг в основу этого приложения.
-* [T12ASH](https://github.com/T12ASH) - разработка графического интерфейса на Qt6/QML, мобильной версии под Android, системы кэширования и локализации.
+* [T12ASH](https://github.com/T12ASH) - разработка графического интерфейса на Qt6/QML.
 
 ---
 
