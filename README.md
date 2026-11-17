@@ -1,8 +1,18 @@
 # Расписание БГТУ
 
 Кроссплатформенное приложение (Desktop & Android) с графическим интерфейсом на **C++20 / Qt 6 (QML)** для удобного просмотра расписания занятий Брянского государственного технического университета (БГТУ).
-[[icons/starme-confetti-dark.svg]](https://github.com/T12ASH/guiLessonShowerForBSTU)
+
 Проект - форк оригинальной консольной утилиты [cliLessonShowerForBSTU](https://codeberg.org/overlord_zpyxkhtnvorplimbex/cliLessonShowerForBSTU) и развивает её идеи в виде полноценного графического и мобильного клиента.
+
+<p align="center">
+  <a href="https://github.com/T12ASH/guiLessonShowerForBSTU">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="icons/starme_confetti_dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="icons/starme_confetti_light.svg">
+      <img alt="Star T12ASH/guiLessonShowerForBSTU on GitHub" src="icons/starme_confetti_dark.svg" width="100%">
+    </picture>
+  </a>
+</p>
 
 ---
 
