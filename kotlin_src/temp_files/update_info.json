@@ -1,0 +1,19 @@
+{
+  "version": "v1.0.1",
+  "release_page": "https://github.com/T12ASH/guiLessonShowerForBSTU/releases/tag/v1.0.1",
+  "changelog": "v1.0.0 ---> v1.0.1\n    - улучшем интерфейс\n       1. Добавлены новые иконки\n     2. Добавлены ссылки на репозитории и имена создателей\n       3. Исправлен баг с выбором языков",
+  "platforms": {
+        "android": {
+            "filetype": ".apk",
+            "sha256": "ce202fae2cc62c35dc59f6797bde3d26f810af171af5884478bf9afe0957ce49",
+            "mirrors": [
+                "https://github.com/T12ASH/guiLessonShowerForBSTU/releases/download/v1.0.1/appBSTUcurriculum-Release.apk"
+            ]
+        },
+        "ios": {
+            "filetype": ".ipa",
+            "sha256": "...",
+            "mirrors": []
+        }
+  }
+}

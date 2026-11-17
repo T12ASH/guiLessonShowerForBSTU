@@ -41,6 +41,10 @@ qt_add_qml_module(appBSTUcurriculum
         icons/play_circle.svg
         icons/hourglass.svg
         icons/dash.svg
+        icons/telegram.svg
+        icons/github.svg
+        icons/codeberg.svg
+        icons/switchLang.svg
     SOURCES
         src/schedulemanager.h
         src/schedulemanager.cpp

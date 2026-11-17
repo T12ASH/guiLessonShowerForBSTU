@@ -32,6 +32,10 @@ Popup {
         scheduleManager.onSettingsOpened()
     }
 
+    onClosed: {
+        langPopup.close()
+    }
+
     background: Rectangle {
         color: "#18181b"
         radius: 16
@@ -107,12 +111,12 @@ Popup {
             color: "#27272a"
         }
 
-        ColumnLayout {
+        RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: 8
 
             Text {
-                text: i18n.t("language")
+                text: i18n.t("languages")
                 font.bold: true
                 font.pixelSize: Math.round(13 * control.uiScale)
                 color: "#ffffff"
@@ -120,56 +124,145 @@ Popup {
                 Layout.preferredWidth: 0
                 Layout.minimumWidth: 0
                 elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
             }
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 6
+            Button {
+                id: langDropdownBtn
+                Layout.preferredWidth: Math.round(92 * control.uiScale)
+                Layout.preferredHeight: 38
+                hoverEnabled: true
+                padding: 0
+                leftPadding: 0
+                rightPadding: 0
+                topPadding: 0
+                bottomPadding: 0
+                horizontalPadding: 0
+                verticalPadding: 0
+                leftInset: 0
+                rightInset: 0
+                topInset: 0
+                bottomInset: 0
 
-                Repeater {
-                    model: [
-                        { code: "ru", label: "RU" },
-                        { code: "en", label: "EN" },
-                        { code: "de", label: "DE" },
-                        { code: "fr", label: "FR" }
-                    ]
+                contentItem: Item {
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 10
+                        spacing: 6
 
-                    Button {
-                        id: langBtn
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 36
-                        padding: 0
-                        leftPadding: 0
-                        rightPadding: 0
-                        topPadding: 0
-                        bottomPadding: 0
-                        horizontalPadding: 0
-                        verticalPadding: 0
-                        leftInset: 0
-                        rightInset: 0
-                        topInset: 0
-                        bottomInset: 0
+                        Text {
+                            text: (i18n.lang ? i18n.lang.toUpperCase() : "RU")
+                            font.bold: true
+                            font.pixelSize: Math.round(13 * control.uiScale)
+                            color: "#ffffff"
+                            Layout.fillWidth: true
+                            verticalAlignment: Text.AlignVCenter
+                        }
 
-                        contentItem: Item {
-                            Text {
-                                anchors.fill: parent
-                                text: modelData.label
-                                font.bold: true
-                                font.pixelSize: Math.round(12 * control.uiScale)
-                                color: (i18n.lang === modelData.code) ? "#ffffff" : "#a1a1aa"
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                        Image {
+                            Layout.preferredWidth: 12
+                            Layout.preferredHeight: 12
+                            source: "../icons/arrow_down.svg"
+                            fillMode: Image.PreserveAspectFit
+                            mipmap: true
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                    }
+                }
+
+                background: Rectangle {
+                    color: "#121214"
+                    radius: 8
+                    border.color: (langDropdownBtn.pressed || langPopup.opened) ? "#e11d48" : (langDropdownBtn.hovered ? "#3f3f46" : "#2e2e38")
+                    border.width: 1.5
+                }
+
+                onClicked: langPopup.open()
+
+                Popup {
+                    id: langPopup
+                    parent: langDropdownBtn
+                    x: langDropdownBtn.width - width
+                    y: langDropdownBtn.height + 4
+                    width: Math.round(150 * control.uiScale)
+                    z: 100
+                    padding: 6
+                    modal: true
+                    dim: false
+                    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                    background: Rectangle {
+                        color: "#18181b"
+                        radius: 10
+                        border.color: "#2e2e38"
+                        border.width: 1.5
+                    }
+
+                    contentItem: ColumnLayout {
+                        spacing: 4
+
+                        Repeater {
+                            model: [
+                                { code: "ru", name: "Русский", short: "RU" },
+                                { code: "en", name: "English", short: "EN" },
+                                { code: "de", name: "Deutsch", short: "DE" },
+                                { code: "fr", name: "Français", short: "FR" }
+                            ]
+
+                            Button {
+                                id: langItemBtn
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 34
+                                hoverEnabled: true
+                                padding: 0
+                                leftPadding: 0
+                                rightPadding: 0
+                                topPadding: 0
+                                bottomPadding: 0
+                                horizontalPadding: 0
+                                verticalPadding: 0
+                                leftInset: 0
+                                rightInset: 0
+                                topInset: 0
+                                bottomInset: 0
+
+                                contentItem: Item {
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 10
+                                        spacing: 8
+
+                                        Text {
+                                            text: modelData.name
+                                            font.bold: (i18n.lang === modelData.code)
+                                            font.pixelSize: Math.round(13 * control.uiScale)
+                                            color: (i18n.lang === modelData.code) ? "#ffffff" : "#a1a1aa"
+                                            Layout.fillWidth: true
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+
+                                        Text {
+                                            text: modelData.short
+                                            font.bold: true
+                                            font.pixelSize: Math.round(11 * control.uiScale)
+                                            color: (i18n.lang === modelData.code) ? "#e11d48" : "#71717a"
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+                                    }
+                                }
+
+                                background: Rectangle {
+                                    color: langItemBtn.pressed ? "#27272a" : (langItemBtn.hovered ? "#222226" : (i18n.lang === modelData.code ? "#27272a" : "transparent"))
+                                    radius: 6
+                                }
+
+                                onClicked: {
+                                    scheduleManager.setLanguage(modelData.code)
+                                    langPopup.close()
+                                }
                             }
-                        }
-
-                        background: Rectangle {
-                            color: (i18n.lang === modelData.code) ? "#e11d48" : "#121214"
-                            radius: 8
-                            border.color: (i18n.lang === modelData.code) ? "#e11d48" : "#2e2e38"
-                        }
-
-                        onClicked: {
-                            scheduleManager.setLanguage(modelData.code)
                         }
                     }
                 }
@@ -317,6 +410,142 @@ Popup {
                 }
 
                 onClicked: control.requestPeriodPicker()
+            }
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            Text {
+                text: i18n.t("created_by")
+                font.bold: true
+                font.pixelSize: Math.round(13 * control.uiScale)
+                color: "#ffffff"
+                Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                Layout.minimumWidth: 0
+                elide: Text.ElideRight
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                radius: 8
+                color: "#121214"
+                border.color: "#2e2e38"
+                border.width: 1.5
+                implicitHeight: authorsCol.implicitHeight + 16
+
+                ColumnLayout {
+                    id: authorsCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 6
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            text: i18n.t("author_1_group")
+                            font.pixelSize: Math.round(12 * control.uiScale)
+                            color: "#a1a1aa"
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 0
+                            Layout.minimumWidth: 0
+                            elide: Text.ElideRight
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        Text {
+                            text: i18n.t("author_1_name")
+                            font.bold: true
+                            font.pixelSize: Math.round(12 * control.uiScale)
+                            color: "#ffffff"
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            text: i18n.t("author_2_group")
+                            font.pixelSize: Math.round(12 * control.uiScale)
+                            color: "#a1a1aa"
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 0
+                            Layout.minimumWidth: 0
+                            elide: Text.ElideRight
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        Text {
+                            text: i18n.t("author_2_name")
+                            font.bold: true
+                            font.pixelSize: Math.round(12 * control.uiScale)
+                            color: "#ffffff"
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Repeater {
+                model: [
+                    { icon: "../icons/telegram.svg", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+                    { icon: "../icons/github.svg", url: "https://github.com/T12ASH/guiLessonShowerForBSTU" },
+                    { icon: "../icons/codeberg.svg", url: "https://codeberg.org/overlord_zpyxkhtnvorplimbex/cliLessonShowerForBSTU" }
+                ]
+
+                Button {
+                    id: linkBtn
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 38
+                    hoverEnabled: true
+                    padding: 0
+                    leftPadding: 0
+                    rightPadding: 0
+                    topPadding: 0
+                    bottomPadding: 0
+                    horizontalPadding: 0
+                    verticalPadding: 0
+                    leftInset: 0
+                    rightInset: 0
+                    topInset: 0
+                    bottomInset: 0
+
+                    contentItem: Item {
+                        Image {
+                            anchors.centerIn: parent
+                            width: Math.round(20 * control.uiScale)
+                            height: Math.round(20 * control.uiScale)
+                            source: modelData.icon
+                            fillMode: Image.PreserveAspectFit
+                            mipmap: true
+                        }
+                    }
+
+                    background: Rectangle {
+                        color: linkBtn.pressed ? "#27272a" : (linkBtn.hovered ? "#1f1f23" : "#121214")
+                        radius: 8
+                        border.color: linkBtn.pressed ? "#e11d48" : (linkBtn.hovered ? "#3f3f46" : "#2e2e38")
+                        border.width: 1.5
+                    }
+
+                    onClicked: {
+                        Qt.openUrlExternally(modelData.url)
+                    }
+                }
             }
         }
 
