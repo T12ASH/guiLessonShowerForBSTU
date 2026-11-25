@@ -1,16 +1,34 @@
+/*
+ * BSTUcurriculum — Cross-platform schedule app for BSTU
+ * Copyright (C) 2026 overlord_zpyxkhtnvorplimbex <https://codeberg.org/overlord_zpyxkhtnvorplimbex>
+ * Copyright (C) 2026 T12ASH                      <https://github.com/T12ASH>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 #ifndef UPDATER_HPP
 #define UPDATER_HPP
 
+#include <QByteArray>
+#include <QFutureWatcher>
 #include <QObject>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
-#include <QByteArray>
 #include <QtQml/qqmlregistration.h>
 
+#include <atomic>
+#include <memory>
+
+class QFile;
 class QNetworkAccessManager;
 class QNetworkReply;
-class QFile;
+class QTimer;
 
 struct UpdatePlatformInfo {
     QString filetype;
@@ -22,8 +40,9 @@ struct UpdateManifest {
     QString version;
     QString releasePage;
     QString changelog;
-    QString type; // "release" or "test"
+    QString type; // "release", "stable" or "test"
     UpdatePlatformInfo platformInfo;
+    QByteArray rawJson;
     bool isValid = false;
 };
 
@@ -43,16 +62,17 @@ class Updater : public QObject
     Q_PROPERTY(bool updateReady READ updateReady NOTIFY updateReadyChanged)
     Q_PROPERTY(QString updateFilePath READ updateFilePath NOTIFY updateFilePathChanged)
     Q_PROPERTY(bool hasCriticalError READ hasCriticalError NOTIFY hasCriticalErrorChanged)
+    Q_PROPERTY(bool hasCache READ hasCache NOTIFY hasCacheChanged)
     Q_PROPERTY(int failureCount READ failureCount NOTIFY failureCountChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QStringList manifestMirrors READ manifestMirrors WRITE setManifestMirrors NOTIFY manifestMirrorsChanged)
 
 public:
-    explicit Updater(QObject *parent = nullptr);
+    explicit Updater(QObject* parent = nullptr);
     ~Updater() override;
 
     QString currentVersion() const;
-    void setCurrentVersion(const QString &version);
+    void setCurrentVersion(const QString& version);
 
     QString newVersion() const;
     QString changelog() const;
@@ -64,19 +84,20 @@ public:
     bool updateReady() const;
     QString updateFilePath() const;
     bool hasCriticalError() const;
+    bool hasCache() const;
     int failureCount() const;
     QString statusMessage() const;
     QStringList manifestMirrors() const;
-    void setManifestMirrors(const QStringList &mirrors);
+    void setManifestMirrors(const QStringList& mirrors);
 
     Q_INVOKABLE void checkForUpdates();
-    Q_INVOKABLE void checkForUpdatesFromUrl(const QString &url);
-    Q_INVOKABLE void checkManifestData(const QString &jsonContent);
+    Q_INVOKABLE void checkForUpdatesFromUrl(const QString& url);
+    Q_INVOKABLE void checkManifestData(const QString& jsonContent);
     Q_INVOKABLE void postponeUpdate();
     Q_INVOKABLE void installUpdate();
     Q_INVOKABLE void resetFailureCount();
     Q_INVOKABLE void cleanCache();
-    Q_INVOKABLE static bool isVersionGreater(const QString &remoteVer, const QString &currentVer);
+    Q_INVOKABLE static bool isVersionGreater(const QString& remoteVer, const QString& localVer);
 
 signals:
     void currentVersionChanged();
@@ -90,6 +111,7 @@ signals:
     void updateReadyChanged();
     void updateFilePathChanged();
     void hasCriticalErrorChanged();
+    void hasCacheChanged();
     void failureCountChanged();
     void statusMessageChanged();
     void manifestMirrorsChanged();
@@ -99,43 +121,101 @@ signals:
     void criticalErrorThresholdReached();
 
 private slots:
+    void onManifestDataReady();
     void onManifestReplyFinished();
     void onDownloadDataReady();
     void onDownloadReplyFinished();
     void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+    void onHashVerificationFinished();
 
 private:
+    enum class HashPurpose {
+        None,
+        CacheCheckOnline,
+        CacheCheckOffline,
+        DownloadedFile
+    };
+
+    struct HashResult {
+        quint64 jobId = 0;
+        bool matches = false;
+    };
+
+    void loadCurrentVersionFromLocalJson();
+    void cleanupIfAlreadyUpdated();
+    bool tryLoadCachedUpdate();
+    bool saveCachedManifestJson(const QByteArray& jsonData) const;
+
     void fetchManifestFromNextMirror();
-    UpdateManifest parseManifest(const QByteArray &data);
-    void processManifest(const UpdateManifest &manifest);
+    UpdateManifest parseManifest(const QByteArray& data) const;
+    void processManifest(const UpdateManifest& manifest);
     void startDownload();
     void downloadFromNextMirror();
-    bool verifyFileSha256(const QString &filePath, const QString &expectedSha256);
-    void cleanupOldUpdates(const QString &keepVersion = QString());
+    void scheduleNextDownloadAttempt(bool switchMirrorImmediately);
+
+    void verifyFileSha256Async(const QString& filePath, const QString& expectedSha256, HashPurpose purpose);
+    void cancelActiveOperations();
+    void abortManifestReply();
+    void abortDownloadReply();
+    void closeTempFile();
+
+    void cleanStaleTempFiles() const;
+    void cleanCacheDir() const;
     QString cacheDirectory() const;
-    QString targetFilePath(const QString &version, const QString &filetype) const;
+    QString cachedManifestPath() const;
+    QString targetFilePath(const QString& version, const QString& filetype) const;
+    bool hasEnoughDiskSpace(const QString& dirPath, qint64 requiredBytes) const;
+
+    void setIsChecking(bool checking);
+    void setIsDownloading(bool downloading);
+    void setDownloadProgress(qreal progress);
+    void setUpdateAvailable(bool available);
+    void setUpdateReady(bool ready);
+    void setUpdateFilePath(const QString& path);
+    void setStatusMessage(const QString& message);
 
     void recordFailure(bool isNetworkUnavailable);
     void recordSuccess();
 
-    QNetworkAccessManager *m_networkManager = nullptr;
-    QNetworkReply *m_manifestReply = nullptr;
-    QNetworkReply *m_downloadReply = nullptr;
-    QFile *m_tempFile = nullptr;
-    QString m_tempFilePath;
+    QNetworkAccessManager* m_networkManager = nullptr;
+    QNetworkReply* m_manifestReply = nullptr;
+    QNetworkReply* m_downloadReply = nullptr;
+    QFile* m_tempFile = nullptr;
+    QTimer* m_retryTimer = nullptr;
+    QFutureWatcher<HashResult>* m_hashWatcher = nullptr;
 
-    QString m_currentVersion = QStringLiteral("v1.0.0");
+    QByteArray m_manifestBuffer;
+    bool m_manifestTooLarge = false;
+
+    QString m_tempFilePath;
+    qint64 m_downloadedBytes = 0;
+    bool m_diskWriteFailed = false;
+    bool m_downloadTooLarge = false;
+    bool m_checkedTotalSize = false;
+
+    bool m_isVerifying = false;
+    HashPurpose m_hashPurpose = HashPurpose::None;
+    QString m_verifyingFilePath;
+    quint64 m_currentHashJobId = 0;
+    std::shared_ptr<std::atomic_bool> m_hashCancelFlag;
+
+    QString m_currentVersion;
     UpdateManifest m_currentManifest;
     bool m_isChecking = false;
     bool m_isDownloading = false;
     qreal m_downloadProgress = 0.0;
     bool m_updateAvailable = false;
     bool m_updateReady = false;
+    bool m_hasCriticalError = false;
+    int m_failureCount = 0;
     QString m_updateFilePath;
     QString m_statusMessage;
 
     QStringList m_manifestMirrors;
+    QStringList m_activeManifestMirrors;
     int m_currentManifestMirrorIndex = 0;
+    bool m_manifestHadNonNetworkFailure = false;
+    bool m_manifestHadNetworkFailure = false;
 
     QStringList m_downloadMirrors;
     int m_currentDownloadMirrorIndex = 0;
@@ -143,6 +223,13 @@ private:
 
     static constexpr int MAX_FAILURES_PER_MIRROR = 5;
     static constexpr int CRITICAL_FAILURE_THRESHOLD = 100;
+    static constexpr int MANIFEST_TIMEOUT_MS = 15000;
+    static constexpr int DOWNLOAD_TIMEOUT_MS = 30000;
+    static constexpr qint64 MAX_MANIFEST_BYTES = 1 * 1024 * 1024;          // 1 MiB
+    static constexpr qint64 MAX_PACKAGE_BYTES = 300 * 1024 * 1024;         // 300 MiB
+    static constexpr qint64 DOWNLOAD_READ_BUFFER_BYTES = 512 * 1024;       // 512 KiB
+    static constexpr qint64 MIN_FREE_SPACE_BYTES = 50 * 1024 * 1024;       // 50 MiB
+    static constexpr qint64 EXTRA_DISK_MARGIN_BYTES = 20 * 1024 * 1024;    // 20 MiB
 };
 
 #endif // UPDATER_HPP

@@ -22,6 +22,9 @@ int main(int argc, char *argv[])
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
     QGuiApplication app(argc, argv);
+    app.setOrganizationName(QStringLiteral("BSTU"));
+    app.setApplicationName(QStringLiteral("BSTUcurriculum"));
+    app.setApplicationVersion(QStringLiteral(APP_VERSION));
 
     QQuickStyle::setStyle("Basic");
 

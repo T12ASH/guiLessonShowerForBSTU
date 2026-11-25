@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(BSTUcurriculum VERSION 1.0 LANGUAGES CXX)
+project(BSTUcurriculum VERSION 1.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,17 +15,19 @@ qt_add_executable(appBSTUcurriculum
     src/schedulemanager.cpp
 )
 
-target_include_directories(appBSTUcurriculum PRIVATE src)
+target_include_directories(appBSTUcurriculum PRIVATE src updater)
+target_compile_definitions(appBSTUcurriculum PRIVATE APP_VERSION="${PROJECT_VERSION}")
 
 qt_add_qml_module(appBSTUcurriculum
     URI BSTUcurriculum
-    VERSION 1.0
+    VERSION 1.1.0
     QML_FILES
         Main.qml
         Translations.js
         components/GroupPickerPopup.qml
         components/PeriodPickerPopup.qml
         components/SettingsDialog.qml
+        components/UpdateDialog.qml
         components/LessonCard.qml
         components/DaySelectorBar.qml
         views/SetupScreen.qml
@@ -45,12 +47,13 @@ qt_add_qml_module(appBSTUcurriculum
         icons/github.svg
         icons/codeberg.svg
         icons/switchLang.svg
+        icons/updater.svg
+        updater/update_info.json
     SOURCES
         src/schedulemanager.h
         src/schedulemanager.cpp
         updater/updater.hpp
         updater/updater.cpp
-        updater/update_info.json
 )
 
 target_link_libraries(appBSTUcurriculum
@@ -76,7 +79,7 @@ if (ANDROID)
         QT_ANDROID_APP_NAME "Расписание БГТУ"
         QT_ANDROID_TARGET_SDK_VERSION 34
         QT_ANDROID_MIN_SDK_VERSION 26
-        QT_ANDROID_PERMISSIONS "android.permission.INTERNET"
+        QT_ANDROID_PERMISSIONS "android.permission.INTERNET" "android.permission.ACCESS_NETWORK_STATE" "android.permission.REQUEST_INSTALL_PACKAGES"
         QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
     )
 

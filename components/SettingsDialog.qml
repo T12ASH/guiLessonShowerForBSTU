@@ -24,6 +24,7 @@ Popup {
     property string defaultGroup: "О-25-ИСТ-ииап-Б"
     property string selectedGroupDraft: ""
     property string selectedPeriodDraft: ""
+    property var updater: null
 
     signal requestGroupPicker()
     signal requestPeriodPicker()
@@ -413,88 +414,233 @@ Popup {
             }
         }
 
-        // ColumnLayout {
-        //     Layout.fillWidth: true
-        //     spacing: 6
+        // App update section
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
 
-        //     Text {
-        //         text: i18n.t("created_by")
-        //         font.bold: true
-        //         font.pixelSize: Math.round(13 * control.uiScale)
-        //         color: "#ffffff"
-        //         Layout.fillWidth: true
-        //         Layout.preferredWidth: 0
-        //         Layout.minimumWidth: 0
-        //         elide: Text.ElideRight
-        //     }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
 
-        //     Rectangle {
-        //         Layout.fillWidth: true
-        //         radius: 8
-        //         color: "#121214"
-        //         border.color: "#2e2e38"
-        //         border.width: 1.5
-        //         implicitHeight: authorsCol.implicitHeight + 16
+                Image {
+                    Layout.preferredWidth: Math.round(18 * control.uiScale)
+                    Layout.preferredHeight: Math.round(18 * control.uiScale)
+                    source: "../icons/updater.svg"
+                    fillMode: Image.PreserveAspectFit
+                    mipmap: true
+                }
 
-        //         ColumnLayout {
-        //             id: authorsCol
-        //             anchors.left: parent.left
-        //             anchors.right: parent.right
-        //             anchors.verticalCenter: parent.verticalCenter
-        //             anchors.leftMargin: 12
-        //             anchors.rightMargin: 12
-        //             spacing: 6
+                Text {
+                    text: i18n.t("app_update")
+                    font.bold: true
+                    font.pixelSize: Math.round(13 * control.uiScale)
+                    color: "#ffffff"
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                }
 
-        //             RowLayout {
-        //                 Layout.fillWidth: true
-        //                 spacing: 8
+                Text {
+                    text: control.updater ? control.updater.currentVersion : ""
+                    font.pixelSize: Math.round(12 * control.uiScale)
+                    color: "#a1a1aa"
+                }
+            }
 
-        //                 Text {
-        //                     text: i18n.t("author_1_group")
-        //                     font.pixelSize: Math.round(12 * control.uiScale)
-        //                     color: "#a1a1aa"
-        //                     Layout.fillWidth: true
-        //                     Layout.preferredWidth: 0
-        //                     Layout.minimumWidth: 0
-        //                     elide: Text.ElideRight
-        //                     verticalAlignment: Text.AlignVCenter
-        //                 }
+            Rectangle {
+                Layout.fillWidth: true
+                radius: 8
+                color: "#121214"
+                border.color: (control.updater && control.updater.updateReady) ? "#34d399" : "#2e2e38"
+                border.width: 1.5
+                implicitHeight: updateCardCol.implicitHeight + 16
 
-        //                 Text {
-        //                     text: i18n.t("author_1_name")
-        //                     font.bold: true
-        //                     font.pixelSize: Math.round(12 * control.uiScale)
-        //                     color: "#ffffff"
-        //                     verticalAlignment: Text.AlignVCenter
-        //                 }
-        //             }
+                ColumnLayout {
+                    id: updateCardCol
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 8
 
-        //             RowLayout {
-        //                 Layout.fillWidth: true
-        //                 spacing: 8
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
 
-        //                 Text {
-        //                     text: i18n.t("author_2_group")
-        //                     font.pixelSize: Math.round(12 * control.uiScale)
-        //                     color: "#a1a1aa"
-        //                     Layout.fillWidth: true
-        //                     Layout.preferredWidth: 0
-        //                     Layout.minimumWidth: 0
-        //                     elide: Text.ElideRight
-        //                     verticalAlignment: Text.AlignVCenter
-        //                 }
+                        Text {
+                            Layout.fillWidth: true
+                            text: {
+                                if (!control.updater) return ""
+                                if (control.updater.isChecking) return i18n.t("checking_updates")
+                                if (control.updater.isDownloading) return i18n.t("downloading_update") + " (" + Math.round(control.updater.downloadProgress * 100) + "%)"
+                                if (control.updater.updateReady) return i18n.t("new_version_available") + control.updater.newVersion
+                                if (control.updater.hasCriticalError) return i18n.t("critical_update_error")
+                                if (control.updater.statusMessage === "Update cache cleared.") return i18n.t("cache_cleared")
+                                if (control.updater.statusMessage !== "") return control.updater.statusMessage
+                                return i18n.t("up_to_date")
+                            }
+                            font.pixelSize: Math.round(12 * control.uiScale)
+                            color: {
+                                if (!control.updater) return "#a1a1aa"
+                                if (control.updater.updateReady) return "#34d399"
+                                if (control.updater.hasCriticalError) return "#f87171"
+                                return "#a1a1aa"
+                            }
+                            wrapMode: Text.WordWrap
+                        }
+                    }
 
-        //                 Text {
-        //                     text: i18n.t("author_2_name")
-        //                     font.bold: true
-        //                     font.pixelSize: Math.round(12 * control.uiScale)
-        //                     color: "#ffffff"
-        //                     verticalAlignment: Text.AlignVCenter
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                    RowLayout {
+                        visible: control.updater && control.updater.hasCriticalError
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Button {
+                            id: criticalOpenReleasesBtn
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 32
+                            padding: 0
+                            contentItem: Item {
+                                Text {
+                                    anchors.fill: parent
+                                    text: i18n.t("open_releases")
+                                    font.bold: true
+                                    font.pixelSize: Math.round(12 * control.uiScale)
+                                    color: "#ffffff"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+                            background: Rectangle {
+                                color: criticalOpenReleasesBtn.pressed ? "#be123c" : "#e11d48"
+                                radius: 6
+                            }
+                            onClicked: {
+                                const url = (control.updater && control.updater.releasePage !== "")
+                                    ? control.updater.releasePage
+                                    : "https://github.com/T12ASH/guiLessonShowerForBSTU/releases"
+                                Qt.openUrlExternally(url)
+                            }
+                        }
+
+                        Button {
+                            id: criticalResetBtn
+                            Layout.preferredWidth: Math.round(110 * control.uiScale)
+                            Layout.preferredHeight: 32
+                            padding: 0
+                            contentItem: Item {
+                                Text {
+                                    anchors.fill: parent
+                                    text: i18n.t("reset_errors")
+                                    font.pixelSize: Math.round(11 * control.uiScale)
+                                    color: "#a1a1aa"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+                            background: Rectangle {
+                                color: criticalResetBtn.pressed ? "#3f3f46" : "#27272a"
+                                radius: 6
+                            }
+                            onClicked: {
+                                if (control.updater) control.updater.resetFailureCount()
+                            }
+                        }
+                    }
+
+                    ProgressBar {
+                        visible: control.updater && control.updater.isDownloading
+                        Layout.fillWidth: true
+                        from: 0.0
+                        to: 1.0
+                        value: control.updater ? control.updater.downloadProgress : 0.0
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Button {
+                            id: checkOrInstallBtn
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 36
+                            padding: 0
+                            enabled: control.updater && !control.updater.isChecking && !control.updater.isDownloading
+
+                            contentItem: Item {
+                                Text {
+                                    anchors.fill: parent
+                                    text: {
+                                        if (!control.updater) return ""
+                                        if (control.updater.updateReady) return i18n.t("install_now")
+                                        if (control.updater.isChecking) return i18n.t("loading")
+                                        return i18n.t("check_updates")
+                                    }
+                                    font.bold: true
+                                    font.pixelSize: Math.round(12 * control.uiScale)
+                                    color: "#ffffff"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+
+                            background: Rectangle {
+                                color: {
+                                    if (control.updater && control.updater.updateReady) {
+                                        return checkOrInstallBtn.pressed ? "#059669" : "#10b981"
+                                    }
+                                    return checkOrInstallBtn.pressed ? "#3f3f46" : "#27272a"
+                                }
+                                radius: 6
+                            }
+
+                            onClicked: {
+                                if (!control.updater) return
+                                if (control.updater.updateReady) {
+                                    control.updater.installUpdate()
+                                } else {
+                                    control.updater.checkForUpdates()
+                                }
+                            }
+                        }
+
+                        Button {
+                            id: clearUpdateCacheBtn
+                            Layout.preferredWidth: Math.round(100 * control.uiScale)
+                            Layout.preferredHeight: 36
+                            padding: 0
+                            enabled: control.updater && !control.updater.isDownloading && (control.updater.hasCache || control.updater.updateReady || control.updater.updateFilePath !== "")
+
+                            contentItem: Item {
+                                Text {
+                                    anchors.fill: parent
+                                    text: i18n.t("clear_cache")
+                                    font.pixelSize: Math.round(11 * control.uiScale)
+                                    color: clearUpdateCacheBtn.enabled ? "#ef4444" : "#52525b"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            background: Rectangle {
+                                color: clearUpdateCacheBtn.pressed ? "#27272a" : "transparent"
+                                border.color: clearUpdateCacheBtn.enabled ? "#7f1d1d" : "#27272a"
+                                border.width: 1
+                                radius: 6
+                            }
+
+                            onClicked: {
+                                if (control.updater) {
+                                    control.updater.cleanCache()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         RowLayout {
             Layout.fillWidth: true

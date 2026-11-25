@@ -63,10 +63,25 @@ ApplicationWindow {
         id: scheduleManager
     }
 
+    Updater {
+        id: appUpdater
+
+        onUpdateReadyChanged: {
+            if (appUpdater.updateReady) {
+                updateDialog.open()
+            }
+        }
+
+        onCriticalErrorThresholdReached: {
+            updateDialog.open()
+        }
+    }
+
     Component.onCompleted: {
         if (!scheduleManager.hasSchedule) {
             scheduleManager.onSettingsOpened()
         }
+        appUpdater.checkForUpdates()
     }
 
     QtObject {
@@ -107,9 +122,17 @@ ApplicationWindow {
         defaultGroup: root.defaultGroup
         selectedGroupDraft: root.selectedGroupDraft
         selectedPeriodDraft: root.selectedPeriodDraft
+        updater: appUpdater
 
         onRequestGroupPicker: groupPickerPopup.open()
         onRequestPeriodPicker: periodPickerPopup.open()
+    }
+
+    UpdateDialog {
+        id: updateDialog
+        z: 20
+        uiScale: root.uiScale
+        updater: appUpdater
     }
 
     SetupScreen {
@@ -141,6 +164,7 @@ ApplicationWindow {
         isViewingToday: root.isViewingToday
         currentDayData: root.currentDayData
         currentTime: root.currentTime
+        updater: appUpdater
 
         onDaySelected: function(idx) {
             root.currentDayIndex = idx

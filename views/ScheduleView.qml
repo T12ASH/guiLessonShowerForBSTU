@@ -15,6 +15,7 @@ ColumnLayout {
     property bool isViewingToday: false
     property var currentDayData: null
     property date currentTime: new Date()
+    property var updater: null
 
     signal requestOpenSettings()
     signal daySelected(int index)
@@ -159,6 +160,18 @@ ColumnLayout {
                     source: "../icons/settings.svg"
                     fillMode: Image.PreserveAspectFit
                     mipmap: true
+                }
+
+                Rectangle {
+                    visible: control.updater && control.updater.updateReady
+                    width: 8
+                    height: 8
+                    radius: 4
+                    color: "#34d399"
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.topMargin: 2
+                    anchors.rightMargin: 2
                 }
             }
 

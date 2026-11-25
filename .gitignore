@@ -4,7 +4,7 @@ build
 build-android
 app*
 temp
-
+AGE*
 
 .qtcreator/
 CMakeLists.txt.user*
