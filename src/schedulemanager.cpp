@@ -947,3 +947,35 @@ void ScheduleManager::parseHtmlAndPopulate(const QString &html)
     emit statusMessageChanged();
     emit consoleOutputChanged();
 }
+
+QString ScheduleManager::oppositeWeekParity() const
+{
+    return (m_weekParity == "не чет") ? "чет" : "не чет";
+}
+
+QVariantList ScheduleManager::lessonsForDay(int dayIndex, const QString &parity) const
+{
+    static const QStringList daysOrder = {
+        "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"
+    };
+    if (dayIndex < 0 || dayIndex >= daysOrder.size()) {
+        return {};
+    }
+
+    const QString &targetDay = daysOrder[dayIndex];
+    QVariantList result;
+    for (const LessonInfo &l : m_allLessons) {
+        if (l.day == targetDay && matchesParity(l.weekType, parity)) {
+            QVariantMap item;
+            item["time"] = l.time;
+            item["name"] = l.name;
+            item["type"] = l.type;
+            item["day"] = l.day;
+            item["teacher"] = l.teacher;
+            item["weekType"] = l.weekType;
+            item["classRoom"] = l.classRoom;
+            result.append(item);
+        }
+    }
+    return result;
+}

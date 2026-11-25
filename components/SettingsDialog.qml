@@ -413,88 +413,88 @@ Popup {
             }
         }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 6
+        // ColumnLayout {
+        //     Layout.fillWidth: true
+        //     spacing: 6
 
-            Text {
-                text: i18n.t("created_by")
-                font.bold: true
-                font.pixelSize: Math.round(13 * control.uiScale)
-                color: "#ffffff"
-                Layout.fillWidth: true
-                Layout.preferredWidth: 0
-                Layout.minimumWidth: 0
-                elide: Text.ElideRight
-            }
+        //     Text {
+        //         text: i18n.t("created_by")
+        //         font.bold: true
+        //         font.pixelSize: Math.round(13 * control.uiScale)
+        //         color: "#ffffff"
+        //         Layout.fillWidth: true
+        //         Layout.preferredWidth: 0
+        //         Layout.minimumWidth: 0
+        //         elide: Text.ElideRight
+        //     }
 
-            Rectangle {
-                Layout.fillWidth: true
-                radius: 8
-                color: "#121214"
-                border.color: "#2e2e38"
-                border.width: 1.5
-                implicitHeight: authorsCol.implicitHeight + 16
+        //     Rectangle {
+        //         Layout.fillWidth: true
+        //         radius: 8
+        //         color: "#121214"
+        //         border.color: "#2e2e38"
+        //         border.width: 1.5
+        //         implicitHeight: authorsCol.implicitHeight + 16
 
-                ColumnLayout {
-                    id: authorsCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 12
-                    spacing: 6
+        //         ColumnLayout {
+        //             id: authorsCol
+        //             anchors.left: parent.left
+        //             anchors.right: parent.right
+        //             anchors.verticalCenter: parent.verticalCenter
+        //             anchors.leftMargin: 12
+        //             anchors.rightMargin: 12
+        //             spacing: 6
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
+        //             RowLayout {
+        //                 Layout.fillWidth: true
+        //                 spacing: 8
 
-                        Text {
-                            text: i18n.t("author_1_group")
-                            font.pixelSize: Math.round(12 * control.uiScale)
-                            color: "#a1a1aa"
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 0
-                            Layout.minimumWidth: 0
-                            elide: Text.ElideRight
-                            verticalAlignment: Text.AlignVCenter
-                        }
+        //                 Text {
+        //                     text: i18n.t("author_1_group")
+        //                     font.pixelSize: Math.round(12 * control.uiScale)
+        //                     color: "#a1a1aa"
+        //                     Layout.fillWidth: true
+        //                     Layout.preferredWidth: 0
+        //                     Layout.minimumWidth: 0
+        //                     elide: Text.ElideRight
+        //                     verticalAlignment: Text.AlignVCenter
+        //                 }
 
-                        Text {
-                            text: i18n.t("author_1_name")
-                            font.bold: true
-                            font.pixelSize: Math.round(12 * control.uiScale)
-                            color: "#ffffff"
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                    }
+        //                 Text {
+        //                     text: i18n.t("author_1_name")
+        //                     font.bold: true
+        //                     font.pixelSize: Math.round(12 * control.uiScale)
+        //                     color: "#ffffff"
+        //                     verticalAlignment: Text.AlignVCenter
+        //                 }
+        //             }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
+        //             RowLayout {
+        //                 Layout.fillWidth: true
+        //                 spacing: 8
 
-                        Text {
-                            text: i18n.t("author_2_group")
-                            font.pixelSize: Math.round(12 * control.uiScale)
-                            color: "#a1a1aa"
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 0
-                            Layout.minimumWidth: 0
-                            elide: Text.ElideRight
-                            verticalAlignment: Text.AlignVCenter
-                        }
+        //                 Text {
+        //                     text: i18n.t("author_2_group")
+        //                     font.pixelSize: Math.round(12 * control.uiScale)
+        //                     color: "#a1a1aa"
+        //                     Layout.fillWidth: true
+        //                     Layout.preferredWidth: 0
+        //                     Layout.minimumWidth: 0
+        //                     elide: Text.ElideRight
+        //                     verticalAlignment: Text.AlignVCenter
+        //                 }
 
-                        Text {
-                            text: i18n.t("author_2_name")
-                            font.bold: true
-                            font.pixelSize: Math.round(12 * control.uiScale)
-                            color: "#ffffff"
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                    }
-                }
-            }
-        }
+        //                 Text {
+        //                     text: i18n.t("author_2_name")
+        //                     font.bold: true
+        //                     font.pixelSize: Math.round(12 * control.uiScale)
+        //                     color: "#ffffff"
+        //                     verticalAlignment: Text.AlignVCenter
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         RowLayout {
             Layout.fillWidth: true

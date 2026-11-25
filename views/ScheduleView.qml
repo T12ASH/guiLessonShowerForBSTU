@@ -19,8 +19,30 @@ ColumnLayout {
     signal requestOpenSettings()
     signal daySelected(int index)
 
-    Keys.onLeftPressed: control.daySelected((control.currentDayIndex - 1 + 7) % 7)
-    Keys.onRightPressed: control.daySelected((control.currentDayIndex + 1) % 7)
+    function stepDay(delta) {
+            const next = control.currentDayIndex + delta
+            if (next < 0) {
+                scheduleManager.setWeekParity(scheduleManager.oppositeWeekParity())
+                control.daySelected(6)
+            } else if (next > 6) {
+                scheduleManager.setWeekParity(scheduleManager.oppositeWeekParity())
+                control.daySelected(0)
+            } else {
+                control.daySelected(next)
+            }
+    }
+
+    Keys.onLeftPressed: control.stepDay(-1)
+    Keys.onRightPressed: control.stepDay(1)
+
+    onCurrentDayIndexChanged: {
+        if (daySwipeView.initialized && !daySwipeView.isTeleporting) {
+            const targetPage = currentDayIndex + 1
+            if (daySwipeView.currentIndex !== targetPage) {
+                daySwipeView.setCurrentIndex(targetPage)
+            }
+        }
+    }
 
     RowLayout {
         Layout.fillWidth: true
@@ -163,86 +185,198 @@ ColumnLayout {
         }
     }
 
-    ScrollView {
-        id: scrollView
-        visible: control.currentDayData && control.currentDayData.lessons.length > 0
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        clip: true
+    SwipeView {
+            id: daySwipeView
+            visible: scheduleManager.hasSchedule
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            spacing: 12
 
-        ListView {
-            id: listView
-            width: scrollView.availableWidth
-            spacing: 8
-            model: control.currentDayData ? control.currentDayData.lessons : []
+            property bool initialized: false
+            property bool isTeleporting: false
 
-            delegate: LessonCard {
-                lessonData: modelData
-                uiScale: control.uiScale
-                isCompact: control.isCompact
-                isViewingToday: control.isViewingToday
-                currentTime: control.currentTime
+            function teleportAcrossWeek(newDayIndex, newPageIndex) {
+                isTeleporting = true
+
+                const nextParity = scheduleManager.oppositeWeekParity()
+                scheduleManager.setWeekParity(nextParity)
+                control.daySelected(newDayIndex)
+
+                const lv = daySwipeView.contentItem
+                const prevDur = lv ? lv.highlightMoveDuration : -1
+                if (lv) {
+                    lv.highlightMoveDuration = 0
+                }
+                daySwipeView.setCurrentIndex(newPageIndex)
+                if (lv && lv.positionViewAtIndex) {
+                    lv.positionViewAtIndex(newPageIndex, ListView.SnapPosition)
+                }
+
+                Qt.callLater(function() {
+                    if (lv) {
+                        lv.highlightMoveDuration = prevDur
+                    }
+                    isTeleporting = false
+                })
             }
-        }
-    }
 
-    Rectangle {
-        visible: scheduleManager.hasSchedule && (!control.currentDayData || control.currentDayData.lessons.length === 0)
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        color: "#18181b"
-        radius: 12
-        border.color: "#27272a"
-        border.width: 1
+            function handleEdgeWrap() {
+                if (!initialized || isTeleporting) return
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
-
-            Item { Layout.fillHeight: true }
-
-            Rectangle {
-                Layout.preferredWidth: 52
-                Layout.preferredHeight: 52
-                radius: 26
-                color: "#27272a"
-                Layout.alignment: Qt.AlignHCenter
-
-                Image {
-                    anchors.centerIn: parent
-                    width: 24
-                    height: 24
-                    source: "../icons/dash.svg"
-                    fillMode: Image.PreserveAspectFit
-                    mipmap: true
+                if (currentIndex === 8) {
+                    teleportAcrossWeek(0, 1)
+                } else if (currentIndex === 0) {
+                    teleportAcrossWeek(6, 7)
                 }
             }
 
-            Text {
-                Layout.fillWidth: true
-                Layout.preferredWidth: 0
-                Layout.minimumWidth: 0
-                text: i18n.t("day_off_title")
-                font.bold: true
-                font.pixelSize: Math.round(17 * control.uiScale)
-                color: "#ffffff"
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
+            Component.onCompleted: {
+                const lv = daySwipeView.contentItem
+                const prevDur = lv ? lv.highlightMoveDuration : -1
+                if (lv) lv.highlightMoveDuration = 0
+
+                const startPage = control.currentDayIndex + 1
+                currentIndex = startPage
+                if (lv && lv.positionViewAtIndex) {
+                    lv.positionViewAtIndex(startPage, ListView.SnapPosition)
+                }
+
+                Qt.callLater(function() {
+                    if (lv) lv.highlightMoveDuration = prevDur
+                    initialized = true
+                })
             }
 
-            Text {
-                Layout.fillWidth: true
-                Layout.preferredWidth: 0
-                Layout.minimumWidth: 0
-                text: i18n.t("no_lessons_day")
-                color: "#a1a1aa"
-                font.pixelSize: Math.round(13 * control.uiScale)
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
+            onCurrentIndexChanged: {
+                if (!initialized || isTeleporting) return
+
+                if (currentIndex >= 1 && currentIndex <= 7) {
+                    const targetDay = currentIndex - 1
+                    if (control.currentDayIndex !== targetDay) {
+                        control.daySelected(targetDay)
+                    }
+                } else if (contentItem && !contentItem.moving && !contentItem.dragging) {
+                    handleEdgeWrap()
+                }
             }
 
-            Item { Layout.fillHeight: true }
+            Connections {
+                target: daySwipeView.contentItem
+                function onMovementEnded() {
+                    daySwipeView.handleEdgeWrap()
+                }
+            }
+
+            Repeater {
+                model: 9
+
+                Item {
+                    id: dayPage
+                    required property int index
+
+                    readonly property bool isEdgePage: (index === 0 || index === 8)
+                    readonly property int dayIdx: (index === 0) ? 6 : (index === 8 ? 0 : index - 1)
+                    readonly property string pageParity: isEdgePage
+                                                         ? scheduleManager.oppositeWeekParity()
+                                                         : scheduleManager.weekParity
+
+                    readonly property var lessonsList: {
+                        const days = scheduleManager.scheduleDays
+                        if (!isEdgePage) {
+                            return (days && days.length > dayIdx) ? days[dayIdx].lessons : []
+                        }
+                        return scheduleManager.lessonsForDay(dayIdx, pageParity)
+                    }
+
+                    readonly property int todayWeekdayIndex: (control.currentTime.getDay() + 6) % 7
+                    readonly property bool isPageToday: (dayIdx === todayWeekdayIndex)
+                                                        && (pageParity === scheduleManager.calculateCurrentWeekParity())
+
+                    ListView {
+                        id: listView
+                        visible: dayPage.lessonsList.length > 0
+                        anchors.fill: parent
+                        clip: true
+                        spacing: 8
+                        flickableDirection: Flickable.VerticalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: dayPage.lessonsList
+
+                        ScrollBar.vertical: ScrollBar {
+                            policy: ScrollBar.AsNeeded
+                        }
+
+                        delegate: LessonCard {
+                            lessonData: modelData
+                            uiScale: control.uiScale
+                            isCompact: control.isCompact
+                            isViewingToday: dayPage.isPageToday
+                            currentTime: control.currentTime
+                        }
+                    }
+
+                    Rectangle {
+                        visible: dayPage.lessonsList.length === 0
+                        anchors.fill: parent
+                        color: "#18181b"
+                        radius: 12
+                        border.color: "#27272a"
+                        border.width: 1
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 16
+                            spacing: 10
+
+                            Item { Layout.fillHeight: true }
+
+                            Rectangle {
+                                Layout.preferredWidth: 52
+                                Layout.preferredHeight: 52
+                                radius: 26
+                                color: "#27272a"
+                                Layout.alignment: Qt.AlignHCenter
+
+                                Image {
+                                    anchors.centerIn: parent
+                                    width: 24
+                                    height: 24
+                                    source: "../icons/dash.svg"
+                                    fillMode: Image.PreserveAspectFit
+                                    mipmap: true
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 0
+                                Layout.minimumWidth: 0
+                                text: i18n.t("day_off_title")
+                                font.bold: true
+                                font.pixelSize: Math.round(17 * control.uiScale)
+                                color: "#ffffff"
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 0
+                                Layout.minimumWidth: 0
+                                text: i18n.t("no_lessons_day")
+                                color: "#a1a1aa"
+                                font.pixelSize: Math.round(13 * control.uiScale)
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Item { Layout.fillHeight: true }
+                        }
+                    }
+                }
+            }
         }
-    }
+
+
 }

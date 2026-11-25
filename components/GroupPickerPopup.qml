@@ -108,19 +108,30 @@ Popup {
             id: groupSearchInput
             Layout.fillWidth: true
             Layout.preferredHeight: 42
-            placeholderText: i18n.t("group_placeholder")
-            placeholderTextColor: "#71717a"
             color: "#ffffff"
             selectedTextColor: "#ffffff"
             selectionColor: "#e11d48"
             palette.text: "#ffffff"
-            palette.placeholderText: "#71717a"
             font.pixelSize: Math.round(14 * control.uiScale)
             leftPadding: 12
             rightPadding: 12
             topPadding: 0
             bottomPadding: 0
             verticalAlignment: TextInput.AlignVCenter
+
+            Text {
+                text: i18n.t("group_placeholder")
+                color: "#71717a"
+                font: groupSearchInput.font
+                anchors.left: parent.left
+                anchors.leftMargin: 12
+                anchors.right: parent.right
+                anchors.rightMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                elide: Text.ElideRight
+                visible: !groupSearchInput.text && !groupSearchInput.inputMethodComposing
+            }
+
             background: Rectangle {
                 color: "#121214"
                 radius: 8

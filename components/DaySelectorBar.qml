@@ -170,7 +170,12 @@ Rectangle {
                     }
 
                     onClicked: {
-                        control.daySelected((control.currentDayIndex - 1 + 7) % 7)
+                        if (control.currentDayIndex === 0) {
+                            scheduleManager.setWeekParity(scheduleManager.oppositeWeekParity())
+                            control.daySelected(6)
+                        } else {
+                            control.daySelected(control.currentDayIndex - 1)
+                        }
                     }
                 }
 
@@ -246,7 +251,12 @@ Rectangle {
                     }
 
                     onClicked: {
-                        control.daySelected((control.currentDayIndex + 1) % 7)
+                        if (control.currentDayIndex === 6) {
+                            scheduleManager.setWeekParity(scheduleManager.oppositeWeekParity())
+                            control.daySelected(0)
+                        } else {
+                            control.daySelected(control.currentDayIndex + 1)
+                        }
                     }
                 }
             }

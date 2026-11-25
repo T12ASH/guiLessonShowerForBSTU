@@ -13,6 +13,7 @@
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQuickStyle>
 #include "schedulemanager.h"
 
 int main(int argc, char *argv[])
@@ -21,6 +22,8 @@ int main(int argc, char *argv[])
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
     QGuiApplication app(argc, argv);
+
+    QQuickStyle::setStyle("Basic");
 
     QQmlApplicationEngine engine;
     QObject::connect(

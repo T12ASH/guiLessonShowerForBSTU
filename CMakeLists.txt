@@ -48,6 +48,9 @@ qt_add_qml_module(appBSTUcurriculum
     SOURCES
         src/schedulemanager.h
         src/schedulemanager.cpp
+        updater/updater.hpp
+        updater/updater.cpp
+        updater/update_info.json
 )
 
 target_link_libraries(appBSTUcurriculum

@@ -88,6 +88,8 @@ public slots:
     QString periodLabel(const QString &periodValue) const;
     QString detectFormForGroup(const QString &groupName) const;
     static QString defaultAcademicPeriod();
+    QString oppositeWeekParity() const;
+    QVariantList lessonsForDay(int dayIndex, const QString &parity) const;
 
 signals:
     void groupChanged();

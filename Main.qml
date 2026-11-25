@@ -7,10 +7,13 @@ import "Translations.js" as Translations
 ApplicationWindow {
     id: root
     visible: true
-    width: Math.min(480, Screen.desktopAvailableWidth > 0 ? Screen.desktopAvailableWidth : 480)
-    height: Math.min(720, Screen.desktopAvailableHeight > 0 ? Screen.desktopAvailableHeight : 720)
-    minimumWidth: 260
-    minimumHeight: 420
+    readonly property bool isMobile: Qt.platform.os === "android" || Qt.platform.os === "ios"
+    width: isMobile ? Screen.width : Math.min(480, Screen.desktopAvailableWidth > 0 ?
+        Screen.desktopAvailableWidth : 480)
+    height: isMobile ? Screen.height : Math.min(720, Screen.desktopAvailableHeight > 0 ?
+        Screen.desktopAvailableHeight : 720)
+    minimumWidth: isMobile ? 0 : 260
+    minimumHeight: isMobile ? 0 : 420
     title: i18n.t("title")
     color: "#121214"
     palette.window: "#121214"
