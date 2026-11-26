@@ -1,14 +1,14 @@
 {
-  "version": "v1.1.0",
-  "release_page": "https://github.com/T12ASH/guiLessonShowerForBSTU/releases/tag/v1.0.1",
-  "changelog": "v1.0.1 ---> v1.1.0\n1. Улучшен интерфейс\n  - Добавлено управление пальцем\n    - Изменен диалог настроек\n2. Новая функция\n   - система само-обновления",
+  "version": "v1.1.1",
+  "release_page": "https://github.com/T12ASH/guiLessonShowerForBSTU/releases/tag/v1.1.1",
+  "changelog": "v1.1.0 ---> v1.1.1\n  - Добавленна ссылка на канал в телеграмме",
   "type": "release",
   "platforms": {
         "android": {
             "filetype": ".apk",
-            "sha256": "",
+            "sha256": "a0fcafbc7fc3f61acbdcc8c549656bffaa24b9d9110db01beaae8aa3836c1c6f",
             "mirrors": [
-                "https://github.com/T12ASH/guiLessonShowerForBSTU/releases/download/v1.1.0/appBSTUcurriculum.apk"
+                "https://github.com/T12ASH/guiLessonShowerForBSTU/releases/download/v1.1.1/appBSTUcurriculum.apk"
             ]
         }
   }

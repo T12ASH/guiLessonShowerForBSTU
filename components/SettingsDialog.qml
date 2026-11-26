@@ -477,6 +477,7 @@ Popup {
                                 if (control.updater.updateReady) return i18n.t("new_version_available") + control.updater.newVersion
                                 if (control.updater.hasCriticalError) return i18n.t("critical_update_error")
                                 if (control.updater.statusMessage === "Update cache cleared.") return i18n.t("cache_cleared")
+                                if (control.updater.statusMessage === "Application is up-to-date.") return i18n.t("up_to_date")
                                 if (control.updater.statusMessage !== "") return control.updater.statusMessage
                                 return i18n.t("up_to_date")
                             }
@@ -638,6 +639,101 @@ Popup {
                             }
                         }
                     }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 1
+                        color: "#27272a"
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 0
+                            Layout.minimumWidth: 0
+                            text: i18n.t("receive_test_versions")
+                            font.pixelSize: Math.round(12 * control.uiScale)
+                            color: "#d4d4d8"
+                            wrapMode: Text.WordWrap
+                            verticalAlignment: Text.AlignVCenter
+
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: control.updater !== null && control.updater !== undefined
+                                onClicked: {
+                                    control.updater.setReceiveTestVersions(!receiveTestSwitch.checked)
+                                }
+                            }
+                        }
+
+                        Switch {
+                            id: receiveTestSwitch
+                            Layout.preferredWidth: Math.round(42 * control.uiScale)
+                            Layout.preferredHeight: Math.round(24 * control.uiScale)
+                            Layout.minimumWidth: Layout.preferredWidth
+                            Layout.maximumWidth: Layout.preferredWidth
+                            Layout.alignment: Qt.AlignVCenter
+                            padding: 0
+                            leftPadding: 0
+                            rightPadding: 0
+                            topPadding: 0
+                            bottomPadding: 0
+                            horizontalPadding: 0
+                            verticalPadding: 0
+                            leftInset: 0
+                            rightInset: 0
+                            topInset: 0
+                            bottomInset: 0
+                            spacing: 0
+                            checked: control.updater ? control.updater.receiveTestVersions : false
+                            enabled: control.updater !== null && control.updater !== undefined
+                            hoverEnabled: true
+
+                            indicator: Rectangle {
+                                x: 0
+                                y: 0
+                                width: receiveTestSwitch.width
+                                height: receiveTestSwitch.height
+                                radius: height / 2
+                                color: receiveTestSwitch.checked ? "#e11d48" : "#27272a"
+                                border.color: receiveTestSwitch.checked
+                                              ? "#fb7185"
+                                              : (receiveTestSwitch.hovered ? "#52525b" : "#3f3f46")
+                                border.width: 1
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 150 }
+                                }
+
+                                Rectangle {
+                                    x: receiveTestSwitch.checked ? parent.width - width - 3 : 3
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: parent.height - 6
+                                    height: width
+                                    radius: width / 2
+                                    color: receiveTestSwitch.checked ? "#ffffff" : "#a1a1aa"
+
+                                    Behavior on x {
+                                        NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                                    }
+                                }
+                            }
+
+                            contentItem: Item {
+                                implicitWidth: 0
+                                implicitHeight: 0
+                            }
+
+                            onToggled: {
+                                if (control.updater) {
+                                    control.updater.setReceiveTestVersions(checked)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -648,7 +744,7 @@ Popup {
 
             Repeater {
                 model: [
-                    { icon: "../icons/telegram.svg", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+                    { icon: "../icons/telegram.svg", url: "https://t.me/NischevoTeam" },
                     { icon: "../icons/github.svg", url: "https://github.com/T12ASH/guiLessonShowerForBSTU" },
                     { icon: "../icons/codeberg.svg", url: "https://codeberg.org/overlord_zpyxkhtnvorplimbex/cliLessonShowerForBSTU" }
                 ]

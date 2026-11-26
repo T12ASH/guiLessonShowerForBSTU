@@ -15,6 +15,7 @@
 #define UPDATER_HPP
 
 #include <QByteArray>
+#include <QFileInfo>
 #include <QFutureWatcher>
 #include <QObject>
 #include <QString>
@@ -66,6 +67,7 @@ class Updater : public QObject
     Q_PROPERTY(int failureCount READ failureCount NOTIFY failureCountChanged)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
     Q_PROPERTY(QStringList manifestMirrors READ manifestMirrors WRITE setManifestMirrors NOTIFY manifestMirrorsChanged)
+    Q_PROPERTY(bool receiveTestVersions READ receiveTestVersions WRITE setReceiveTestVersions NOTIFY receiveTestVersionsChanged)
 
 public:
     explicit Updater(QObject* parent = nullptr);
@@ -89,6 +91,8 @@ public:
     QString statusMessage() const;
     QStringList manifestMirrors() const;
     void setManifestMirrors(const QStringList& mirrors);
+    bool receiveTestVersions() const;
+    Q_INVOKABLE void setReceiveTestVersions(bool enabled);
 
     Q_INVOKABLE void checkForUpdates();
     Q_INVOKABLE void checkForUpdatesFromUrl(const QString& url);
@@ -115,6 +119,7 @@ signals:
     void failureCountChanged();
     void statusMessageChanged();
     void manifestMirrorsChanged();
+    void receiveTestVersionsChanged();
 
     void updateCheckFinished(bool updateFound);
     void updateDownloadFinished(bool success);
@@ -143,6 +148,9 @@ private:
 
     void loadCurrentVersionFromLocalJson();
     void cleanupIfAlreadyUpdated();
+    bool validateAndPruneCachedUpdate(bool requireValidCurrentVersion,
+                                      UpdateManifest* outManifest = nullptr,
+                                      QString* outPackagePath = nullptr);
     bool tryLoadCachedUpdate();
     bool saveCachedManifestJson(const QByteArray& jsonData) const;
 
@@ -159,13 +167,18 @@ private:
     void abortDownloadReply();
     void closeTempFile();
 
-    void cleanStaleTempFiles() const;
-    void cleanCacheDir() const;
+    void cleanStaleTempFiles();
+    void cleanCacheDir();
+    bool pruneCacheExcept(const QStringList& keepPaths = {});
+    static QStringList cacheFileFilters();
+    QList<QFileInfo> updaterCacheEntries() const;
+    QString legacyTempUpdaterDir() const;
     QString cacheDirectory() const;
     QString cachedManifestPath() const;
     QString targetFilePath(const QString& version, const QString& filetype) const;
     bool hasEnoughDiskSpace(const QString& dirPath, qint64 requiredBytes) const;
 
+    void resetUpdateState();
     void setIsChecking(bool checking);
     void setIsDownloading(bool downloading);
     void setDownloadProgress(qreal progress);
@@ -207,6 +220,7 @@ private:
     bool m_updateAvailable = false;
     bool m_updateReady = false;
     bool m_hasCriticalError = false;
+    bool m_receiveTestVersions = false;
     int m_failureCount = 0;
     QString m_updateFilePath;
     QString m_statusMessage;

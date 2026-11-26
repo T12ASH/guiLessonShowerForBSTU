@@ -28,6 +28,7 @@
 #include <QNetworkRequest>
 #include <QPromise>
 #include <QRegularExpression>
+#include <QSet>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStorageInfo>
@@ -46,6 +47,7 @@ namespace {
 constexpr auto SETTINGS_ORG = "BSTUcurriculum";
 constexpr auto SETTINGS_APP = "guiLessonShowerForBSTU";
 constexpr auto SETTINGS_FAIL_KEY = "updater/failureCount";
+constexpr auto SETTINGS_RECEIVE_TEST_KEY = "updater/receiveTestVersions";
 constexpr auto MANIFEST_FILENAME = "update_info.json";
 constexpr auto DOWNLOAD_TMP_FILENAME = "update_download.tmp";
 constexpr auto MANIFEST_TMP_FILENAME = "update_info.json.tmp";
@@ -170,6 +172,12 @@ bool isSafeFileType(const QString& filetype)
     return extRe.match(filetype).hasMatch();
 }
 
+bool isTestRelease(const UpdateManifest& manifest)
+{
+    return manifest.type.compare(QStringLiteral("test"), Qt::CaseInsensitive) == 0
+           || VersionInfo::parse(manifest.version).isTest;
+}
+
 bool computeAndCompareSha256(const QString& filePath,
                              const QString& expectedSha256,
                              const std::shared_ptr<std::atomic_bool>& cancelFlag)
@@ -234,6 +242,10 @@ Updater::Updater(QObject* parent)
     connect(m_hashWatcher, &QFutureWatcher<HashResult>::finished,
             this, &Updater::onHashVerificationFinished);
 
+    QSettings settings(QString::fromLatin1(SETTINGS_ORG), QString::fromLatin1(SETTINGS_APP));
+    m_receiveTestVersions = settings.value(QString::fromLatin1(SETTINGS_RECEIVE_TEST_KEY), false).toBool();
+    m_failureCount = settings.value(QString::fromLatin1(SETTINGS_FAIL_KEY), 0).toInt();
+
     // 1. Read installed app version from bundled update_info.json
     loadCurrentVersionFromLocalJson();
 
@@ -241,8 +253,6 @@ Updater::Updater(QObject* parent)
     cleanStaleTempFiles();
     cleanupIfAlreadyUpdated();
 
-    QSettings settings(QString::fromLatin1(SETTINGS_ORG), QString::fromLatin1(SETTINGS_APP));
-    m_failureCount = settings.value(QString::fromLatin1(SETTINGS_FAIL_KEY), 0).toInt();
     if (m_failureCount >= CRITICAL_FAILURE_THRESHOLD) {
         m_hasCriticalError = true;
         QTimer::singleShot(0, this, [this]() {
@@ -304,28 +314,74 @@ void Updater::loadCurrentVersionFromLocalJson()
 
 void Updater::cleanupIfAlreadyUpdated()
 {
-    const QString manifestPath = cachedManifestPath();
-    if (!QFile::exists(manifestPath)) {
+    if (m_isDownloading || m_isVerifying) {
         return;
     }
 
+    if (!validateAndPruneCachedUpdate(false)) {
+        resetUpdateState();
+    }
+}
+
+bool Updater::validateAndPruneCachedUpdate(bool requireValidCurrentVersion,
+                                           UpdateManifest* outManifest,
+                                           QString* outPackagePath)
+{
+    const QString manifestPath = cachedManifestPath();
     QFile file(manifestPath);
-    if (!file.open(QIODevice::ReadOnly)) {
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
         cleanCacheDir();
-        return;
+        return false;
     }
 
     const UpdateManifest cached = parseManifest(file.read(MAX_MANIFEST_BYTES));
-    if (!cached.isValid || !VersionInfo::parse(m_currentVersion).isValid) {
-        return;
+    if (!cached.isValid) {
+        qDebug() << "[Updater] Invalid cached manifest, clearing update cache.";
+        cleanCacheDir();
+        return false;
     }
 
-    // User already installed this (or newer) version -> wipe entire temp_updater/
-    if (!isVersionGreater(cached.version, m_currentVersion)) {
-        qDebug() << "[Updater] App already at" << m_currentVersion
-                 << "(cached:" << cached.version << "), clearing temp_updater/";
+    if (isTestRelease(cached) && !m_receiveTestVersions) {
+        qDebug() << "[Updater] Cached test update disabled by setting, clearing update cache.";
         cleanCacheDir();
+        return false;
     }
+
+    const VersionInfo currentVer = VersionInfo::parse(m_currentVersion);
+    if (!currentVer.isValid) {
+        if (requireValidCurrentVersion) {
+            cleanCacheDir();
+            return false;
+        }
+    } else if (!isVersionGreater(cached.version, m_currentVersion)) {
+        qDebug() << "[Updater] App already at" << m_currentVersion
+                 << "(cached:" << cached.version << "), clearing update cache.";
+        cleanCacheDir();
+        return false;
+    }
+
+    if (!isSafeFileType(cached.platformInfo.filetype) || !isValidSha256(cached.platformInfo.sha256)) {
+        qDebug() << "[Updater] Invalid cached platform metadata, clearing update cache.";
+        cleanCacheDir();
+        return false;
+    }
+
+    const QString destFile = targetFilePath(cached.version, cached.platformInfo.filetype);
+    if (!QFile::exists(destFile)) {
+        qDebug() << "[Updater] Cached package missing for manifest, clearing orphaned update cache.";
+        cleanCacheDir();
+        return false;
+    }
+
+    pruneCacheExcept({ destFile, manifestPath });
+
+    if (outManifest) {
+        *outManifest = cached;
+    }
+    if (outPackagePath) {
+        *outPackagePath = destFile;
+    }
+    return true;
 }
 
 QString Updater::currentVersion() const { return m_currentVersion; }
@@ -351,18 +407,11 @@ QString Updater::updateFilePath() const { return m_updateFilePath; }
 bool Updater::hasCriticalError() const { return m_hasCriticalError; }
 bool Updater::hasCache() const
 {
-    const QString dir = cacheDirectory();
-    QDir d(dir);
-    if (!d.exists()) {
-        return false;
+    if (!updaterCacheEntries().isEmpty()) {
+        return true;
     }
-    const QStringList filters = {
-        QStringLiteral("update_*"),
-        QString::fromLatin1(MANIFEST_FILENAME),
-        QString::fromLatin1(MANIFEST_TMP_FILENAME),
-        QString::fromLatin1(DOWNLOAD_TMP_FILENAME)
-    };
-    return !d.entryList(filters, QDir::Files).isEmpty();
+    const QFileInfo legacyInfo(legacyTempUpdaterDir());
+    return legacyInfo.exists() && legacyInfo.isDir();
 }
 int Updater::failureCount() const { return m_failureCount; }
 QString Updater::statusMessage() const { return m_statusMessage; }
@@ -374,6 +423,36 @@ void Updater::setManifestMirrors(const QStringList& mirrors)
         m_manifestMirrors = mirrors;
         emit manifestMirrorsChanged();
     }
+}
+
+bool Updater::receiveTestVersions() const
+{
+    return m_receiveTestVersions;
+}
+
+void Updater::setReceiveTestVersions(bool enabled)
+{
+    if (m_receiveTestVersions == enabled) {
+        return;
+    }
+
+    m_receiveTestVersions = enabled;
+    QSettings settings(QString::fromLatin1(SETTINGS_ORG), QString::fromLatin1(SETTINGS_APP));
+    settings.setValue(QString::fromLatin1(SETTINGS_RECEIVE_TEST_KEY), m_receiveTestVersions);
+    emit receiveTestVersionsChanged();
+
+    if (!m_receiveTestVersions && isTestRelease(m_currentManifest)
+        && (m_isDownloading || m_isVerifying || m_updateAvailable || m_updateReady)) {
+        cancelActiveOperations();
+        setIsDownloading(false);
+        setDownloadProgress(0.0);
+        cleanCacheDir();
+        resetUpdateState();
+        setStatusMessage(QStringLiteral("Application is up-to-date."));
+        return;
+    }
+
+    cleanupIfAlreadyUpdated();
 }
 
 bool Updater::isVersionGreater(const QString& remoteVer, const QString& localVer)
@@ -576,22 +655,31 @@ UpdateManifest Updater::parseManifest(const QByteArray& data) const
     const QJsonObject root = doc.object();
     QJsonObject selected = root;
     QString manifestType = root.value(QStringLiteral("type")).toString().trimmed();
-    const bool currentIsTest = VersionInfo::parse(m_currentVersion).isTest;
 
-    // New manifests contain separate stable and test entries. Select only the
-    // test entry for a test build; release builds never consume test updates.
-    if (root.value(QStringLiteral("stable")).isObject()
-        || root.value(QStringLiteral("test")).isObject()) {
-        QString preferredKey = currentIsTest ? QStringLiteral("test") : QStringLiteral("stable");
-        if (!root.value(preferredKey).isObject()) {
-            preferredKey = (preferredKey == QStringLiteral("stable"))
+    // New manifests contain separate stable and test entries. Select test only
+    // when receiving test versions is enabled and test is newer than stable.
+    const bool hasStable = root.value(QStringLiteral("stable")).isObject();
+    const bool hasTest = root.value(QStringLiteral("test")).isObject();
+    if (hasStable || hasTest) {
+        QString chosenKey;
+        if (m_receiveTestVersions && hasTest && hasStable) {
+            const QString stableVerStr = root.value(QStringLiteral("stable")).toObject().value(QStringLiteral("version")).toString().trimmed();
+            const QString testVerStr = root.value(QStringLiteral("test")).toObject().value(QStringLiteral("version")).toString().trimmed();
+            const VersionInfo stableVer = VersionInfo::parse(stableVerStr);
+            const VersionInfo testVer = VersionInfo::parse(testVerStr);
+            chosenKey = (testVer.isValid && (!stableVer.isValid || testVer > stableVer))
                 ? QStringLiteral("test")
                 : QStringLiteral("stable");
+        } else if (m_receiveTestVersions && hasTest) {
+            chosenKey = QStringLiteral("test");
+        } else if (hasStable) {
+            chosenKey = QStringLiteral("stable");
+        } else {
+            chosenKey = QStringLiteral("test");
         }
-        if (root.value(preferredKey).isObject()) {
-            selected = root.value(preferredKey).toObject();
-            manifestType = preferredKey;
-        }
+
+        selected = root.value(chosenKey).toObject();
+        manifestType = chosenKey;
     }
 
     manifest.version = selected.value(QStringLiteral("version")).toString().trimmed();
@@ -625,38 +713,10 @@ UpdateManifest Updater::parseManifest(const QByteArray& data) const
 
 bool Updater::tryLoadCachedUpdate()
 {
-    const QString manifestPath = cachedManifestPath();
-    QFile file(manifestPath);
-    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-        return false;
-    }
-
-    const UpdateManifest cached = parseManifest(file.read(MAX_MANIFEST_BYTES));
-    if (!cached.isValid) {
-        cleanCacheDir();
-        return false;
-    }
-
-    const bool isCurrentTest = VersionInfo::parse(m_currentVersion).isTest;
-    const bool isManifestTest = cached.type.compare(QStringLiteral("test"), Qt::CaseInsensitive) == 0;
-    if (isManifestTest && !isCurrentTest) {
-        cleanCacheDir();
-        return false;
-    }
-
-    if (!isVersionGreater(cached.version, m_currentVersion)) {
-        cleanCacheDir();
-        return false;
-    }
-
-    if (!isSafeFileType(cached.platformInfo.filetype) || !isValidSha256(cached.platformInfo.sha256)) {
-        cleanCacheDir();
-        return false;
-    }
-
-    const QString destFile = targetFilePath(cached.version, cached.platformInfo.filetype);
-    if (!QFile::exists(destFile)) {
-        cleanCacheDir();
+    UpdateManifest cached;
+    QString destFile;
+    if (!validateAndPruneCachedUpdate(true, &cached, &destFile)) {
+        resetUpdateState();
         return false;
     }
 
@@ -712,10 +772,11 @@ void Updater::processManifest(const UpdateManifest& manifest)
         return;
     }
 
-    const bool isCurrentTest = VersionInfo::parse(m_currentVersion).isTest;
-    const bool isManifestTest = manifest.type.compare(QStringLiteral("test"), Qt::CaseInsensitive) == 0;
-    if (isManifestTest && !isCurrentTest) {
-        qDebug() << "[Updater] Skipping test update for release client.";
+    if (isTestRelease(manifest) && !m_receiveTestVersions) {
+        qDebug() << "[Updater] Skipping test update because test versions are disabled.";
+        cleanCacheDir();
+        resetUpdateState();
+        setStatusMessage(QStringLiteral("Application is up-to-date."));
         emit updateCheckFinished(false);
         return;
     }
@@ -724,9 +785,7 @@ void Updater::processManifest(const UpdateManifest& manifest)
     if (!isVersionGreater(manifest.version, m_currentVersion)) {
         qDebug() << "[Updater] Application is up-to-date:" << m_currentVersion << ">= remote" << manifest.version;
         cleanCacheDir();
-        setUpdateAvailable(false);
-        setUpdateReady(false);
-        setUpdateFilePath(QString());
+        resetUpdateState();
         setStatusMessage(QStringLiteral("Application is up-to-date."));
         emit updateCheckFinished(false);
         return;
@@ -739,18 +798,24 @@ void Updater::processManifest(const UpdateManifest& manifest)
 
     if (manifest.platformInfo.mirrors.isEmpty()) {
         qWarning() << "[Updater] No download mirrors available for platform:" << currentPlatformKey();
+        cleanCacheDir();
+        resetUpdateState();
         setStatusMessage(QStringLiteral("No update package available for this platform."));
         emit updateCheckFinished(false);
         return;
     }
     if (!isSafeFileType(manifest.platformInfo.filetype)) {
         qWarning() << "[Updater] Unsafe or missing filetype in manifest:" << manifest.platformInfo.filetype;
+        cleanCacheDir();
+        resetUpdateState();
         recordFailure(false);
         emit updateCheckFinished(false);
         return;
     }
     if (!isValidSha256(manifest.platformInfo.sha256)) {
         qWarning() << "[Updater] Invalid SHA-256 in manifest:" << manifest.platformInfo.sha256;
+        cleanCacheDir();
+        resetUpdateState();
         recordFailure(false);
         emit updateCheckFinished(false);
         return;
@@ -758,18 +823,17 @@ void Updater::processManifest(const UpdateManifest& manifest)
 
     const QString destFile = targetFilePath(manifest.version, manifest.platformInfo.filetype);
 
-    // If this exact latest version is already cached in temp_updater/, verify it without re-downloading
+    // If this exact latest version is already cached, prune any orphaned files and verify it
     if (QFile::exists(destFile)) {
+        pruneCacheExcept({ destFile, cachedManifestPath() });
         setStatusMessage(QStringLiteral("Verifying cached update..."));
         verifyFileSha256Async(destFile, manifest.platformInfo.sha256, HashPurpose::CacheCheckOnline);
         return;
     }
 
-    // Newer version than cached (or empty cache) -> wipe old temp_updater/ and download fresh package silently
+    // Newer version than cached (or empty cache) -> wipe old cache and download fresh package silently
     cleanCacheDir();
-    setUpdateAvailable(false);
-    setUpdateReady(false);
-    setUpdateFilePath(QString());
+    resetUpdateState();
     startDownload();
 }
 
@@ -1052,9 +1116,17 @@ void Updater::onHashVerificationFinished()
 
     if (purpose == HashPurpose::CacheCheckOnline || purpose == HashPurpose::CacheCheckOffline) {
         if (result.matches) {
-            qDebug() << "[Updater] Cached package verified in temp_updater/:" << filePath;
+            qDebug() << "[Updater] Cached package verified:" << filePath;
             if (purpose == HashPurpose::CacheCheckOnline) {
-                saveCachedManifestJson(m_currentManifest.rawJson);
+                if (!saveCachedManifestJson(m_currentManifest.rawJson)) {
+                    qWarning() << "[Updater] Failed to save cached manifest, clearing cache.";
+                    cleanCacheDir();
+                    resetUpdateState();
+                    recordFailure(false);
+                    setStatusMessage(QStringLiteral("Failed to save update metadata."));
+                    emit updateCheckFinished(false);
+                    return;
+                }
             }
             setUpdateFilePath(filePath);
             setUpdateAvailable(true);
@@ -1066,13 +1138,11 @@ void Updater::onHashVerificationFinished()
             return;
         }
 
-        qWarning() << "[Updater] Cached package failed SHA-256 check, wiping temp_updater/";
+        qWarning() << "[Updater] Cached package failed SHA-256 check, clearing cache.";
         cleanCacheDir();
 
         if (purpose == HashPurpose::CacheCheckOffline) {
-            setUpdateAvailable(false);
-            setUpdateReady(false);
-            setUpdateFilePath(QString());
+            resetUpdateState();
             setStatusMessage(QStringLiteral("All update mirrors failed."));
             emit updateCheckFinished(false);
             return;
@@ -1090,8 +1160,19 @@ void Updater::onHashVerificationFinished()
                 QFile::remove(targetPath);
             }
             if (QFile::rename(filePath, targetPath)) {
-                saveCachedManifestJson(m_currentManifest.rawJson);
+                if (!saveCachedManifestJson(m_currentManifest.rawJson)) {
+                    qWarning() << "[Updater] Failed to save manifest for downloaded update, clearing cache.";
+                    cleanCacheDir();
+                    resetUpdateState();
+                    recordFailure(false);
+                    setIsDownloading(false);
+                    setStatusMessage(QStringLiteral("Failed to save update file."));
+                    emit updateDownloadFinished(false);
+                    emit updateCheckFinished(false);
+                    return;
+                }
 
+                pruneCacheExcept({ targetPath, cachedManifestPath() });
                 setUpdateFilePath(targetPath);
                 setUpdateAvailable(true);
                 setUpdateReady(true);
@@ -1171,39 +1252,90 @@ void Updater::closeTempFile()
     }
 }
 
-void Updater::cleanStaleTempFiles() const
+void Updater::cleanStaleTempFiles()
 {
     const QString dir = cacheDirectory();
     const QString downloadTmp = dir + QLatin1Char('/') + QString::fromLatin1(DOWNLOAD_TMP_FILENAME);
     const QString manifestTmp = dir + QLatin1Char('/') + QString::fromLatin1(MANIFEST_TMP_FILENAME);
-    if (QFile::exists(downloadTmp)) {
-        QFile::remove(downloadTmp);
+    bool removedAny = false;
+    if (QFile::exists(downloadTmp) && QFile::remove(downloadTmp)) {
+        removedAny = true;
     }
-    if (QFile::exists(manifestTmp)) {
-        QFile::remove(manifestTmp);
+    if (QFile::exists(manifestTmp) && QFile::remove(manifestTmp)) {
+        removedAny = true;
+    }
+    if (removedAny) {
+        emit hasCacheChanged();
     }
 }
 
-void Updater::cleanCacheDir() const
+QStringList Updater::cacheFileFilters()
 {
-    const QString path = cacheDirectory();
-    QDir dir(path);
-    if (!dir.exists()) {
-        dir.mkpath(path);
-        return;
-    }
-
-    const QStringList filters = {
+    return {
         QStringLiteral("update_*"),
+        QStringLiteral("*.apk"),
         QString::fromLatin1(MANIFEST_FILENAME),
         QString::fromLatin1(MANIFEST_TMP_FILENAME),
         QString::fromLatin1(DOWNLOAD_TMP_FILENAME)
     };
-    const QFileInfoList entries = dir.entryInfoList(filters, QDir::Files | QDir::Hidden | QDir::System);
-    for (const QFileInfo& info : entries) {
-        QFile::remove(info.absoluteFilePath());
+}
+
+QList<QFileInfo> Updater::updaterCacheEntries() const
+{
+    const QString path = cacheDirectory();
+    QDir dir(path);
+    if (!dir.exists()) {
+        return {};
     }
-    const_cast<Updater*>(this)->emit hasCacheChanged();
+    return dir.entryInfoList(cacheFileFilters(), QDir::Files | QDir::Hidden | QDir::System);
+}
+
+QString Updater::legacyTempUpdaterDir() const
+{
+    return cacheDirectory() + QStringLiteral("/temp_updater");
+}
+
+bool Updater::pruneCacheExcept(const QStringList& keepPaths)
+{
+    QSet<QString> normalizedKeep;
+    normalizedKeep.reserve(keepPaths.size());
+    for (const QString& p : keepPaths) {
+        if (!p.isEmpty()) {
+            normalizedKeep.insert(QDir::cleanPath(QFileInfo(p).absoluteFilePath()));
+        }
+    }
+
+    bool removedAny = false;
+    const QList<QFileInfo> entries = updaterCacheEntries();
+    for (const QFileInfo& info : entries) {
+        const QString absPath = QDir::cleanPath(info.absoluteFilePath());
+        if (!normalizedKeep.contains(absPath) && QFile::remove(absPath)) {
+            removedAny = true;
+        }
+    }
+
+    const QString legacyDir = legacyTempUpdaterDir();
+    const QFileInfo legacyInfo(legacyDir);
+    if (legacyInfo.exists() && legacyInfo.isDir() && QDir(legacyDir).removeRecursively()) {
+        removedAny = true;
+    }
+
+    if (removedAny) {
+        emit hasCacheChanged();
+    }
+    return removedAny;
+}
+
+void Updater::cleanCacheDir()
+{
+    pruneCacheExcept();
+}
+
+void Updater::resetUpdateState()
+{
+    setUpdateAvailable(false);
+    setUpdateReady(false);
+    setUpdateFilePath(QString());
 }
 
 QString Updater::cacheDirectory() const
@@ -1342,9 +1474,7 @@ void Updater::cleanCache()
     setIsDownloading(false);
     setDownloadProgress(0.0);
     cleanCacheDir();
-    setUpdateAvailable(false);
-    setUpdateReady(false);
-    setUpdateFilePath(QString());
+    resetUpdateState();
     setStatusMessage(QStringLiteral("Update cache cleared."));
     emit hasCacheChanged();
 }

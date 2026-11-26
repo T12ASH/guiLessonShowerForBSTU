@@ -59,7 +59,8 @@ var dict = {
         "critical_update_error_title": "Ошибка обновлений",
         "critical_update_error_desc": "Произошло более 100 сбоев загрузки. Текущая версия приложения может содержать ошибку. Пожалуйста, установите обновление вручную.",
         "open_releases": "Страница релизов",
-        "reset_errors": "Сбросить ошибки"
+        "reset_errors": "Сбросить ошибки",
+        "receive_test_versions": "Получать версии для тестирования"
     },
     "en": {
         "title": "BSTU Schedule",
@@ -119,7 +120,8 @@ var dict = {
         "critical_update_error_title": "Update Error",
         "critical_update_error_desc": "More than 100 download failures occurred. Please download the latest version manually.",
         "open_releases": "Release page",
-        "reset_errors": "Reset errors"
+        "reset_errors": "Reset errors",
+        "receive_test_versions": "Receive test versions"
     },
     "fr": {
         "title": "Emploi du temps BSTU",
@@ -179,7 +181,8 @@ var dict = {
         "critical_update_error_title": "Erreur de mise à jour",
         "critical_update_error_desc": "Plus de 100 échecs de téléchargement ont eu lieu. Veuillez mettre à jour manuellement.",
         "open_releases": "Page des versions",
-        "reset_errors": "Réinitialiser"
+        "reset_errors": "Réinitialiser",
+        "receive_test_versions": "Recevoir les versions de test"
     },
     "de": {
         "title": "BSTU Stundenplan",
@@ -239,7 +242,8 @@ var dict = {
         "critical_update_error_title": "Update-Fehler",
         "critical_update_error_desc": "Mehr als 100 Download-Fehler sind aufgetreten. Bitte manuell aktualisieren.",
         "open_releases": "Release-Seite",
-        "reset_errors": "Zurücksetzen"
+        "reset_errors": "Zurücksetzen",
+        "receive_test_versions": "Testversionen erhalten"
     }
 };
 
