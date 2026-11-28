@@ -7,9 +7,10 @@ Popup {
     parent: Overlay.overlay
     modal: true
     dim: true
-    anchors.centerIn: Overlay.overlay
-    width: Math.min(parent ? parent.width - 24 : 360, 380)
-    height: Math.min(parent ? parent.height - 48 : 420, 440)
+    x: parent ? (parent.width - width * zoom) / 2 : 0
+    y: parent ? (parent.height - height * zoom) / 2 : 0
+    width: Math.min(parent ? (parent.width - 24) / zoom : 360, 380)
+    height: Math.min(parent ? (parent.height - 48) / zoom : 420, 440)
     padding: 16
     leftPadding: 16
     rightPadding: 16
@@ -22,6 +23,9 @@ Popup {
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     property real uiScale: 1.0
+    readonly property real zoom: scheduleManager.uiScalePercent / 100
+    scale: zoom
+    transformOrigin: Popup.TopLeft
     property string selectedPeriod: ""
     signal periodSelected(string periodCode)
 

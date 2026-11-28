@@ -7,8 +7,9 @@ Popup {
     parent: Overlay.overlay
     modal: true
     dim: true
-    anchors.centerIn: Overlay.overlay
-    width: Math.min(parent ? parent.width - 24 : 360, 390)
+    x: parent ? (parent.width - width * zoom) / 2 : 0
+    y: parent ? (parent.height - height * zoom) / 2 : 0
+    width: Math.min(parent ? (parent.width - 24) / zoom : 360, 390)
     padding: 18
     leftPadding: 18
     rightPadding: 18
@@ -21,6 +22,9 @@ Popup {
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     property real uiScale: 1.0
+    readonly property real zoom: scheduleManager.uiScalePercent / 100
+    scale: zoom
+    transformOrigin: Popup.TopLeft
     property var updater: null
     readonly property var activeUpdater: updater ? updater : (typeof appUpdater !== "undefined" ? appUpdater : null)
     readonly property bool isCritical: activeUpdater ? activeUpdater.hasCriticalError : false
@@ -223,6 +227,7 @@ Popup {
                 padding: 0
                 contentItem: Item {
                     Text {
+                        elide: Text.ElideRight
                         anchors.fill: parent
                         text: i18n.t("postpone")
                         font.pixelSize: Math.round(13 * control.uiScale)
@@ -249,6 +254,7 @@ Popup {
                 padding: 0
                 contentItem: Item {
                     Text {
+                        elide: Text.ElideRight
                         anchors.fill: parent
                         text: i18n.t("install_now")
                         font.bold: true
@@ -310,6 +316,7 @@ Popup {
                 padding: 0
                 contentItem: Item {
                     Text {
+                        elide: Text.ElideRight
                         anchors.fill: parent
                         text: i18n.t("open_releases")
                         font.bold: true

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(BSTUcurriculum VERSION 1.1.1 LANGUAGES CXX)
+project(BSTUcurriculum VERSION 1.1.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,7 +20,7 @@ target_compile_definitions(appBSTUcurriculum PRIVATE APP_VERSION="${PROJECT_VERS
 
 qt_add_qml_module(appBSTUcurriculum
     URI BSTUcurriculum
-    VERSION 1.1.1
+    VERSION 1.1.2
     QML_FILES
         Main.qml
         Translations.js
@@ -32,6 +32,7 @@ qt_add_qml_module(appBSTUcurriculum
         components/DaySelectorBar.qml
         views/SetupScreen.qml
         views/ScheduleView.qml
+        components/ScaleConfirmPopup.qml
     RESOURCES
         icons/app.svg
         icons/settings.svg

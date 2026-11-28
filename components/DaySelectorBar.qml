@@ -69,6 +69,7 @@ Rectangle {
 
                     contentItem: Item {
                         Text {
+                            elide: Text.ElideRight
                             anchors.fill: parent
                             text: oddBtn.text
                             font.pixelSize: Math.round(12 * control.uiScale)
@@ -112,6 +113,7 @@ Rectangle {
 
                     contentItem: Item {
                         Text {
+                            elide: Text.ElideRight
                             anchors.fill: parent
                             text: evenBtn.text
                             font.pixelSize: Math.round(12 * control.uiScale)
@@ -289,6 +291,7 @@ Rectangle {
 
                     contentItem: Item {
                         Text {
+                            elide: Text.ElideRight
                             anchors.fill: parent
                             text: i18n.dayShort(modelData)
                             font.bold: true

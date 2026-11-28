@@ -177,6 +177,7 @@ Rectangle {
 
                 contentItem: Item {
                     Text {
+                        elide: Text.ElideRight
                         anchors.fill: parent
                         text: i18n.t("retry")
                         font.bold: true
@@ -365,6 +366,7 @@ Rectangle {
 
                 contentItem: Item {
                     Text {
+                        elide: Text.ElideRight
                         anchors.fill: parent
                         text: scheduleManager.isRefreshing ? i18n.t("loading") : i18n.t("download_schedule")
                         font.bold: true
@@ -495,7 +497,7 @@ Rectangle {
 
             Repeater {
                 model: [
-                    { icon: "../icons/telegram.svg", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+                    { icon: "../icons/telegram.svg", url: "https://t.me/NischevoTeam" },
                     { icon: "../icons/github.svg", url: "https://github.com/T12ASH/guiLessonShowerForBSTU" },
                     { icon: "../icons/codeberg.svg", url: "https://codeberg.org/overlord_zpyxkhtnvorplimbex/cliLessonShowerForBSTU" }
                 ]
@@ -590,6 +592,8 @@ Rectangle {
         Popup {
             id: setupLangPopup
             parent: langSwitchBtn
+            scale: scheduleManager.uiScalePercent / 100
+            transformOrigin: Popup.TopLeft
             x: langSwitchBtn.width - width
             y: langSwitchBtn.height + 6
             width: Math.round(150 * control.uiScale)
@@ -642,6 +646,9 @@ Rectangle {
                                 spacing: 8
 
                                 Text {
+                                    elide: Text.ElideRight
+                                    Layout.preferredWidth: 0
+                                    Layout.minimumWidth: 0
                                     text: modelData.name
                                     font.bold: (i18n.lang === modelData.code)
                                     font.pixelSize: Math.round(13 * control.uiScale)
@@ -651,6 +658,7 @@ Rectangle {
                                 }
 
                                 Text {
+                                    elide: Text.ElideRight
                                     text: modelData.short
                                     font.bold: true
                                     font.pixelSize: Math.round(11 * control.uiScale)

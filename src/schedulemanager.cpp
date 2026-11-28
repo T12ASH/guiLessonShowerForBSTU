@@ -31,6 +31,7 @@
 #include <QNetworkReply>
 #include <QTimer>
 #include <algorithm>
+#include <QSettings>
 
 static QString stripHtml(QString text)
 {
@@ -108,6 +109,20 @@ ScheduleManager::ScheduleManager(QObject *parent)
     , m_currentReply(nullptr)
     , m_metaReply(nullptr)
 {
+    m_savedUiScalePercent = m_uiScalePercent =
+        qBound(25, QSettings().value(QStringLiteral("ui/scalePercent"), 100).toInt(), 250);
+
+    m_previewTimer = new QTimer(this);
+    m_previewTimer->setInterval(1000);
+    connect(m_previewTimer, &QTimer::timeout, this, [this]() {
+        if (m_previewSecondsLeft > 1) {
+            --m_previewSecondsLeft;
+            emit previewSecondsLeftChanged();
+        } else {
+            revertUiScale();
+        }
+    });
+
     m_netManager = new QNetworkAccessManager(this);
     findBaseDirectory();
     checkCustomIcon();
@@ -978,4 +993,61 @@ QVariantList ScheduleManager::lessonsForDay(int dayIndex, const QString &parity)
         }
     }
     return result;
+}
+
+void ScheduleManager::setUiScalePercent(int percent)
+{
+    percent = qBound(25, percent, 250);
+    if (m_uiScalePercent == percent)
+        return;
+    m_uiScalePercent = percent;
+    QSettings().setValue(QStringLiteral("ui/scalePercent"), percent);
+    emit uiScalePercentChanged();
+}
+
+void ScheduleManager::previewUiScale(int percent)
+{
+    percent = qBound(25, percent, 250);
+    if (percent == m_savedUiScalePercent) {
+        revertUiScale();
+        return;
+    }
+    if (percent != m_uiScalePercent) {
+        m_uiScalePercent = percent;
+        emit uiScalePercentChanged();
+    }
+    m_previewSecondsLeft = 10;
+    emit previewSecondsLeftChanged();
+    m_previewTimer->start();
+}
+
+void ScheduleManager::confirmUiScale()
+{
+    if (m_previewSecondsLeft <= 0)
+        return;
+    m_previewTimer->stop();
+    m_savedUiScalePercent = m_uiScalePercent;
+    QSettings().setValue(QStringLiteral("ui/scalePercent"), m_savedUiScalePercent);
+    m_previewSecondsLeft = 0;
+    emit previewSecondsLeftChanged();
+}
+
+void ScheduleManager::revertUiScale()
+{
+    m_previewTimer->stop();
+    if (m_previewSecondsLeft != 0) {
+        m_previewSecondsLeft = 0;
+        emit previewSecondsLeftChanged();
+    }
+    if (m_uiScalePercent != m_savedUiScalePercent) {
+        m_uiScalePercent = m_savedUiScalePercent;
+        emit uiScalePercentChanged();
+    }
+}
+
+void ScheduleManager::resetUiScale()
+{
+    m_savedUiScalePercent = 100;
+    QSettings().setValue(QStringLiteral("ui/scalePercent"), 100);
+    revertUiScale();
 }

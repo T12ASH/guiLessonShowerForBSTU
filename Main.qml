@@ -24,8 +24,11 @@ ApplicationWindow {
     palette.button: "#27272a"
     palette.buttonText: "#ffffff"
 
-    readonly property bool isCompact: root.width < 430
-    readonly property real uiScale: Math.min(1.0, Math.max(0.80, root.width / 390.0))
+    readonly property real zoom: scheduleManager.uiScalePercent / 100
+    readonly property real logicalWidth: root.width / root.zoom
+
+    readonly property bool isCompact: root.logicalWidth < 430
+    readonly property real uiScale: Math.min(1.0, Math.max(0.80, root.logicalWidth / 390.0))
 
     readonly property string defaultGroup: "О-25-ИСТ-ииап-Б"
 
@@ -95,16 +98,64 @@ ApplicationWindow {
         function formatRoom(room) { return Translations.formatRoom(lang, room) }
     }
 
+    Item {
+        id: scaledRoot
+        width: parent.width / root.zoom
+        height: parent.height / root.zoom
+        scale: root.zoom
+        transformOrigin: Item.TopLeft
 
-    GroupPickerPopup {
-            id: groupPickerPopup
-            z: 10
+        SetupScreen {
+            id: setupScreen
+            visible: !scheduleManager.hasSchedule
             uiScale: root.uiScale
-            selectedGroup: root.selectedGroupDraft
-            onGroupSelected: function(grpName) {
-                root.selectedGroupDraft = grpName
+            defaultGroup: root.defaultGroup
+            selectedGroupDraft: root.selectedGroupDraft
+            selectedPeriodDraft: root.selectedPeriodDraft
+
+            onRequestGroupPicker: groupPickerPopup.open()
+            onRequestPeriodPicker: periodPickerPopup.open()
+            onRequestRetry: scheduleManager.onSettingsOpened()
+            onRequestDownload: function(grp, per) {
+                root.selectedGroupDraft = grp
+                root.selectedPeriodDraft = per
+                scheduleManager.setGroup(grp)
+                scheduleManager.setPeriod(per)
+                scheduleManager.refreshSchedule()
             }
         }
+
+        ScheduleView {
+            id: scheduleView
+            visible: scheduleManager.hasSchedule
+            uiScale: root.uiScale
+            isCompact: root.isCompact
+            currentDayIndex: root.currentDayIndex
+            isViewingToday: root.isViewingToday
+            currentDayData: root.currentDayData
+            currentTime: root.currentTime
+            updater: appUpdater
+
+            onDaySelected: function(idx) {
+                root.currentDayIndex = idx
+            }
+            onRequestOpenSettings: {
+                root.selectedGroupDraft = scheduleManager.group !== "" ? scheduleManager.group : root.defaultGroup
+                root.selectedPeriodDraft = scheduleManager.period
+                settingsDialog.open()
+            }
+        }
+    }
+
+    GroupPickerPopup {
+        id: groupPickerPopup
+        z: 10
+        uiScale: root.uiScale
+        selectedGroup: root.selectedGroupDraft
+        onGroupSelected: function(grpName) {
+            root.selectedGroupDraft = grpName
+        }
+    }
 
     PeriodPickerPopup {
         id: periodPickerPopup
@@ -135,44 +186,8 @@ ApplicationWindow {
         updater: appUpdater
     }
 
-    SetupScreen {
-        id: setupScreen
-        visible: !scheduleManager.hasSchedule
-        uiScale: root.uiScale
-        defaultGroup: root.defaultGroup
-        selectedGroupDraft: root.selectedGroupDraft
-        selectedPeriodDraft: root.selectedPeriodDraft
-
-        onRequestGroupPicker: groupPickerPopup.open()
-        onRequestPeriodPicker: periodPickerPopup.open()
-        onRequestRetry: scheduleManager.onSettingsOpened()
-        onRequestDownload: function(grp, per) {
-            root.selectedGroupDraft = grp
-            root.selectedPeriodDraft = per
-            scheduleManager.setGroup(grp)
-            scheduleManager.setPeriod(per)
-            scheduleManager.refreshSchedule()
-        }
-    }
-
-    ScheduleView {
-        id: scheduleView
-        visible: scheduleManager.hasSchedule
-        uiScale: root.uiScale
-        isCompact: root.isCompact
-        currentDayIndex: root.currentDayIndex
-        isViewingToday: root.isViewingToday
-        currentDayData: root.currentDayData
-        currentTime: root.currentTime
-        updater: appUpdater
-
-        onDaySelected: function(idx) {
-            root.currentDayIndex = idx
-        }
-        onRequestOpenSettings: {
-                    root.selectedGroupDraft = scheduleManager.group !== "" ? scheduleManager.group : root.defaultGroup
-                    root.selectedPeriodDraft = scheduleManager.period
-                    settingsDialog.open()
-                }
+    ScaleConfirmPopup {
+        id: scaleConfirmPopup
+        z: 30
     }
 }

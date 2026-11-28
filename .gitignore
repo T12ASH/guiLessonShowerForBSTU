@@ -26,3 +26,5 @@ periods.txt
 *~
 .DS_Store
 
+*.jks
+*.keystore

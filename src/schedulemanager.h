@@ -11,6 +11,7 @@
 
 class QNetworkAccessManager;
 class QNetworkReply;
+class QTimer;
 
 struct LessonInfo {
     QString time;
@@ -48,6 +49,10 @@ class ScheduleManager : public QObject
     Q_PROPERTY(bool isDebugBuild READ isDebugBuild CONSTANT)
     Q_PROPERTY(QString customIconUrl READ customIconUrl NOTIFY customIconUrlChanged)
     Q_PROPERTY(bool hasCustomIcon READ hasCustomIcon NOTIFY customIconUrlChanged)
+    Q_PROPERTY(int uiScalePercent READ uiScalePercent WRITE setUiScalePercent NOTIFY uiScalePercentChanged)
+    Q_PROPERTY(int appliedUiScalePercent READ appliedUiScalePercent CONSTANT)
+    Q_PROPERTY(int uiScalePercent READ uiScalePercent NOTIFY uiScalePercentChanged)
+    Q_PROPERTY(int previewSecondsLeft READ previewSecondsLeft NOTIFY previewSecondsLeftChanged)
 
 public:
     explicit ScheduleManager(QObject *parent = nullptr);
@@ -68,6 +73,10 @@ public:
     bool hasSchedule() const { return !m_allLessons.isEmpty(); }
     QString customIconUrl() const { return m_customIconUrl; }
     bool hasCustomIcon() const { return !m_customIconPath.isEmpty(); }
+    int uiScalePercent() const { return m_uiScalePercent; }
+    int appliedUiScalePercent() const { return m_appliedUiScalePercent; }
+    void setUiScalePercent(int percent);
+    int previewSecondsLeft() const { return m_previewSecondsLeft; }
     bool isDebugBuild() const {
 #ifdef QT_DEBUG
         return true;
@@ -90,6 +99,10 @@ public slots:
     static QString defaultAcademicPeriod();
     QString oppositeWeekParity() const;
     QVariantList lessonsForDay(int dayIndex, const QString &parity) const;
+    void previewUiScale(int percent);
+    void confirmUiScale();
+    void revertUiScale();
+    void resetUiScale();
 
 signals:
     void groupChanged();
@@ -105,6 +118,8 @@ signals:
     void availableGroupsChanged();
     void availablePeriodsChanged();
     void customIconUrlChanged();
+    void uiScalePercentChanged();
+    void previewSecondsLeftChanged();
 
 private slots:
     void onReplyFinished();
@@ -139,6 +154,11 @@ private:
     QString m_customIconPath;
     QString m_customIconUrl;
     QString m_baseDir;
+    int m_appliedUiScalePercent = 100;
+    int m_uiScalePercent = 100;
+    int m_savedUiScalePercent = 100;
+    int m_previewSecondsLeft = 0;
+    QTimer *m_previewTimer = nullptr;
 
     QList<LessonInfo> m_allLessons;
     QVariantList m_scheduleDays;
